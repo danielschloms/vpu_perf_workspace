@@ -14,3 +14,4 @@ mkdir -p $PROJECT_ROOT_DIR/Third_Party
 mkdir -p $PROJECT_ROOT_DIR/Third_Party_Sources
 
 $SCRIPTS_DIR/clone-repos.sh
+$SCRIPTS_DIR/install-thirdparty.sh

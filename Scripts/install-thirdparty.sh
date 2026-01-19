@@ -37,7 +37,7 @@ git pull                    # Make sure git repository is up-to-date
 autoconf                                        # Create ./configure script
 ./configure --prefix $VERILATOR_INSTALL_PATH    # Configure and create Makefile
 make -j$(nproc)                                 # Build Verilator itself (if error, try just 'make')
-sudo make install
+make install
 
 # Clone RISC-V GNU Toolchain
 echo -e "${BLUE}Cloning RISC-V GCC Toolchain${NC}"
