@@ -1,10 +1,4 @@
 {
-  // Use Docker Compose
-  // "dockerComposeFile": "docker-compose.yml",
-  // "service": "dev",
-  // "overrideCommand": true,
-  // End Use Docker Compose
-  // Use only devcontainer.json
   "image": "perfsim-docker",
   "name": "VPU Perfsim Docker",
   "workspaceMount": "source=${localWorkspaceFolder},target=/home/${localEnv:USER}/${localWorkspaceFolderBasename},type=bind",
@@ -23,8 +17,6 @@
     "-e",
     "DISPLAY=${env:DISPLAY}"
   ],
-  // End Use only devcontainer.json
-  // Shared settings
   "containerEnv": {
     "DISPLAY": "unix:0",
     "WS_PATH": "/home/${localEnv:USER}/${localWorkspaceFolderBasename}"
