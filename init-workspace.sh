@@ -1,0 +1,16 @@
+#!/usr/bin/bash
+
+# Terminal color
+MAGENTA='\033[0;35m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+PROJECT_ROOT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+SCRIPTS_DIR=$PROJECT_ROOT_DIR/Scripts
+
+# Create Third_Party & Third_Party_Sources Directory
+mkdir -p $PROJECT_ROOT_DIR/Third_Party
+mkdir -p $PROJECT_ROOT_DIR/Third_Party_Sources
+
+$SCRIPTS_DIR/clone-repos.sh
