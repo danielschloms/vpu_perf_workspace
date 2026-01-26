@@ -2,9 +2,12 @@
 
 ### Prerequisites
 
-Prerequisites for various programs can be found in `Docker/Dockerfile`
+Prerequisites for various programs can be found in `Docker/Dockerfile`.
+The image can be built with `Docker/build.sh` and be used as a development container with `.devcontainer/devcontainer.json` in VSCode.
 
 ### Installation
 
 There is a single script that will clone and install all relevant tools (`init-workspace.sh`).
 Check `install-thirdparty.sh` to see for which architectures GCC is built (`build_and_install_rv_gcc()`), and to add/remove architectures.
+
+

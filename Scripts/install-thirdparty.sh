@@ -1,11 +1,17 @@
 #!/usr/bin/bash
 
+#######################################
+# Clone and install third party tools #
+#######################################
+
 # Terminal color
 MAGENTA='\033[0;35m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+echo -e "${MAGENTA}Cloning & Installing Third Party Repositories${NC}"
 
 SCRIPTS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJECT_ROOT_DIR="$(dirname "$SCRIPTS_DIR")"

@@ -108,6 +108,8 @@ RUN apt-get install -y --no-install-recommends\
     gcc-multilib \
     g++ \
     g++-multilib \
+    clang \
+    lld \
     # M2-ISA-R-Perf doc generation
     graphviz
 
