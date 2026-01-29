@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 #######################################
 # Clone and install third party tools #
@@ -34,11 +34,11 @@ echo -e "${BLUE}Installing Verilator to ${VERILATOR_INSTALL_PATH}${NC}"
 # unsetenv VERILATOR_ROOT   # For csh; ignore error if on bash
 unset VERILATOR_ROOT        # For bash
 cd $VERILATOR_SRC_PATH
-git pull                    # Make sure git repository is up-to-date
+# git pull                    # Make sure git repository is up-to-date
 # git tag                   # See what versions exist
 # git checkout master       # Use development branch (e.g. recent bug fixes)
 # git checkout stable       # Use most recent stable release
-# git checkout v{version}   # Switch to specified release version
+git checkout v5.030         # Switch to specified release version
 
 autoconf                                        # Create ./configure script
 ./configure --prefix $VERILATOR_INSTALL_PATH    # Configure and create Makefile
