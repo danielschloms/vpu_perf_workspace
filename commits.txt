@@ -1,0 +1,15 @@
+Verilator:
+    - Tag v5.030
+
+Vicuna2:
+    - fpu_ss: 1450626ec0b82e303327ce941cad1e9057d5781a
+    - fpnew: a6af691551ffbd76d5d9cf30774d3295a41615e4
+    - vproc: 068a61cc88cf18cbc16df88d0dff667216a303e8
+    - cv32e40x: ecab818f27a9c4fb08a6c36a315f0743cec05b18
+
+M2-ISA-R:
+    - git@github.com:KK-4595/M2-ISA-R.git @ 178cc2395a6155ec3955a83fbc2ba09586500f77
+        -> Replace CoreDSL2Parser.py with the one from the vpu_perf_workspace/Scripts directory
+
+M2-ISA-R-Perf:
+    - git@github.com:tum-ei-eda/M2-ISA-R-Perf.git @ b0336e9125230833566b8b9bfac6bcf09df40234
