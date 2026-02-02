@@ -63,7 +63,8 @@ rm $PARSER_FILE
 cp $SCRIPTS_DIR/CoreDSL2Parser.py $PARSER_FILE
 
 echo -e "${BLUE}Init Perfsim Workspace${NC}"
-$PERFSIM_DIR/scripts/setup_workspace.sh
+cd $PERFSIM_DIR
+./scripts/setup_workspace.sh
 
 echo -e "${BLUE}Generate Vicuna Performance Model${NC}"
 $PERFSIM_DIR/gen_vicuna.sh
