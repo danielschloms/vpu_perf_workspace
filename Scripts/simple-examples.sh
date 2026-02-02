@@ -19,4 +19,17 @@ VICUNA_DIR_NAME=Vicuna2
 VICUNA_DIR=$PROJECT_ROOT_DIR/$VICUNA_DIR_NAME
 TESTING_DIR=$PROJECT_ROOT_DIR/Perf_Comparison
 
+echo -e "${BLUE}Build RTL simulators${NC}"
+# Using --target dummy because either --target or --ctarget is currently required
+# python3 $TESTING_DIR/testing/run-test-matrix.py --build_rtl --target dummy
+
+echo -e "${Blue}Build, run, and compare tests${NC}"
+
+# Toycar only
+python3 $TESTING_DIR/testing/run-test-matrix.py --build_tests --run_both --compare --target tflm_toy
+
+# All ML benchmarks (AWW and VWW take a *long* time in HW simulation)
+# python3 $TESTING_DIR/testing/run-test-matrix.py --build_tests --run_both --compare --ctarget ml_bench
+
+# Simple examples
 python3 $TESTING_DIR/testing/run-test-matrix.py --build_tests --run_both --compare --ctarget sanitycheck
