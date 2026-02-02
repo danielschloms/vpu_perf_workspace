@@ -110,6 +110,7 @@ RUN apt-get install -y --no-install-recommends\
     g++-multilib \
     clang \
     lld \
+    llvm \
     # M2-ISA-R-Perf doc generation
     graphviz
 
