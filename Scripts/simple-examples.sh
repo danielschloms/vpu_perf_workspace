@@ -21,7 +21,7 @@ TESTING_DIR=$PROJECT_ROOT_DIR/Perf_Comparison
 
 echo -e "${BLUE}Build RTL simulators${NC}"
 # Using --target dummy because either --target or --ctarget is currently required
-# python3 $TESTING_DIR/testing/run-test-matrix.py --build_rtl --target dummy
+python3 $TESTING_DIR/testing/run-test-matrix.py --build_rtl --target dummy
 
 echo -e "${Blue}Build, run, and compare tests${NC}"
 
