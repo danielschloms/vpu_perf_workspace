@@ -4,7 +4,7 @@ SOURCE_DIR="$HOME/sources/nvim"
 
 git clone git@github.com:neovim/neovim.git $SOURCE_DIR
 cd $SOURCE_DIR || exit
-git checkout stable
+git checkout v0.11.7
 make CMAKE_BUILD_TYPE=Release CMAKE_INSTALL_PREFIX=$HOME/opt
 make install
 
