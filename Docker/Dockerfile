@@ -56,6 +56,10 @@ RUN apt-get install --no-install-recommends -y \
 #     libboost-regex-dev \
 #     libboost-system-dev
 
+# Neovim
+RUN apt-get install --no-install-recommends -y \
+    unzip
+
 # RISC-V GNU Toolchain
 RUN apt-get install --no-install-recommends -y \
     autoconf \
