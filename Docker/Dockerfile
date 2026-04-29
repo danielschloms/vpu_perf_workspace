@@ -113,6 +113,7 @@ RUN apt-get install -y --no-install-recommends\
     g++ \
     g++-multilib \
     clang \
+    clangd \
     lld \
     llvm \
     # M2-ISA-R-Perf doc generation
