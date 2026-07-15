@@ -1,6 +1,6 @@
 {
   "image": "perfsim-docker",
-  "name": "VPU Perfsim Docker",
+  "name": "Batched",
   "workspaceMount": "source=${localWorkspaceFolder},target=/home/${localEnv:USER}/${localWorkspaceFolderBasename},type=bind",
   "mounts": [
     "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached",
@@ -11,9 +11,9 @@
     "--net=host",
     "--pid=host",
     "--ipc=host",
-    "--hostname=vpu-perfsim",
-    "--add-host=vpu-perfsim:127.0.0.1",
-    "--name=vpu-perfsim",
+    "--hostname=batched",
+    "--add-host=batched:127.0.0.1",
+    "--name=batched",
     "-e",
     "DISPLAY=${env:DISPLAY}"
   ],
