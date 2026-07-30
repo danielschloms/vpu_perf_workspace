@@ -3,9 +3,10 @@
 import pathlib
 
 batch_model_name = "perfModel->vectorBatchHandModel"
+
 group_batch_fun_mapping = {
     "V_vmv_v_i": "getLmul()",
-    "V_vmv_regs": "getNf()",
+    "V_vmv_regs": "getNfSimm5()",
     "V_vmv_x_s": "one()",
     "V_vmv_s_x": "one()",
     "V_Load": "getLoadStoreEmul()",
@@ -296,7 +297,6 @@ def main():
         ) as group_hpp:
             group_cpp.write(get_header_cpp(vlen))
             group_hpp.write(get_header_hpp(vlen))
-            # vector_cpp.write(get_header_cpp_vector(vlen))
 
             active = False
             printout = False
@@ -372,6 +372,7 @@ def main():
                     if not printout:
                         if "// Enter" in line:
                             # print(f"Print Line {i}")
+                            # group_cpp.write(f'std::printf("{current_grp}\\n");')
                             level = 1
                             printout = True
                     else:
@@ -389,6 +390,14 @@ def main():
                             line = line.replace("getVs2()", "getVs2(batch_i)")
                             line = line.replace("getVs3()", "getVs3(batch_i)")
                             line = line.replace("setVd(", "setVd(batch_i,")
+                            line = line.replace(
+                                "perfModel->V1_Subpipe,",
+                                "(batch_i == 0) * (perfModel->V1_Subpipe + 1),",
+                            )
+                            line = line.replace(
+                                "perfModel->V2_Subpipe,",
+                                "(batch_i == 0) * (perfModel->V2_Subpipe + 1),",
+                            )
                             if "uint64_t" in line and "=" not in line:
                                 # Variable
                                 batch_var_stack.append(line)
@@ -398,10 +407,7 @@ def main():
                         else:
                             group_cpp.write(line)
 
-                        if (
-                            "uint64_t n_V2_Unpack_1_stg" in line
-                            or "uint64_t n_V1_Unpack_1_stg" in line
-                        ):
+                        if "// V1_Unpack" in line or "// V2_Unpack" in line:
                             in_batch = True
                         if (
                             "perfModel->V2_Pack_stg = n_V2_Pack_stg;" in line
@@ -411,20 +417,32 @@ def main():
                             group_cpp.write("// Batched Pipeline Variables\n")
                             for var_line in batch_var_stack:
                                 group_cpp.write(var_line)
+                            first_var = batch_var_stack[0].strip().split(" ")[1][:-1]
                             batch_var_stack = []
                             group_cpp.write("// Batched Pipeline Calculation Loop\n")
                             group_cpp.write(
                                 f"for (size_t batch_i = 0; batch_i < {batch_model_name}.{group_batch_fun_mapping[current_grp]}; batch_i++) {{\n"
                             )
+                            delay_fun = ""
                             for calc_line in batch_calc_stack:
+                                pipe = "V1" if "V1" in calc_line else "V2"
+                                if f"n_V1_Unpack_1 =" in calc_line:
+                                    calc_line = calc_line.replace("n_V_DISP_stg", f"(batch_i == 0 ? n_V_DISP_stg : n_V1_Unpack_1_stg)")
+                                elif f"{first_var} =" in calc_line:
+                                    delay_fun = calc_line[calc_line.find("+") + 1:].strip()[:-1]
+                                    # print(delay_fun)
+                                    calc_line = f"{first_var} = (batch_i == 0 ? n_V_DISP_stg : n_{pipe}_Unpack_1_stg);\n"
                                 group_cpp.write(calc_line)
+
+                                if f"n_{pipe}_Unpack_1_stg =" in calc_line:
+                                    group_cpp.write(f"n_{pipe}_Unpack_1_stg += {delay_fun} - 1;\n")
+
                             batch_calc_stack = []
                             group_cpp.write("}\n")
                             group_cpp.write("// End Batch Loop")
 
             group_cpp.write("} // Namespace")
             group_hpp.write("} // Namespace")
-            # vector_cpp.write("} // Namespace")
             write_cmake(cmake_path, vlen)
 
 
