@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.19) # Verilator's verilator-config.cmake requires >= 3.19
 message(STATUS "CMake Version ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}.${CMAKE_PATCH_VERSION}")
 
 ###This file is used to build the verilated models of CV32E40X and Vicuna###
@@ -44,20 +44,19 @@ else()
 endif()
 
 #####################
-# Check if verilator has been built and include tool.   If not, build it
+# Use the system Verilator.  It must be installed and available on PATH (or
+# find_package will fail).  Verilator's bundled verilator-config.cmake provides
+# the "verilate()" macro used below.
+# NOTE: Verilator is no longer built from source in this repo.
 ####################
-set(TOOLCHAIN_TOP ${CMAKE_CURRENT_SOURCE_DIR}/../../toolchain) #Top level path to toolchain folder
-include(${TOOLCHAIN_TOP}/CMake/toolchain_build.cmake) #include toolchain macros
-
-build_verilator()
-
-find_package(verilator HINTS ${CMAKE_CURRENT_SOURCE_DIR}/../../toolchain/verilator)
+find_package(verilator CONFIG REQUIRED)
+message(STATUS "Using Verilator at ${VERILATOR_BIN}")
 
 ########
 ## Import RTL configuration from here instead of command line.
 ## File shared with program compliation.
 ########
-include(${CMAKE_CURRENT_SOURCE_DIR}/../vector_config.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/vector_config.cmake)
 message("Selected SCALAR_CORE = ${SCALAR_CORE}")
 set(ENV{VPROC_PIPELINES} ${VPROC_PIPELINES})
 message("Selected VPROC_PIPELINES = ${VPROC_PIPELINES}")
@@ -148,7 +147,8 @@ endif()
 # Sources/Include Directories
 ######################
 
-add_subdirectory(../../rtl/ rtl)
+# Import RTL sources (CV32E40X/CV32A60X, FPU_SS, Vicuna core) from ./rtl/
+add_subdirectory(rtl rtl)
 
 
 ######################
@@ -191,17 +191,17 @@ endif()
 add_executable(verilated_model)
 
 target_sources(verilated_model PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/${SCALAR_CORE}/verilator_support_${SCALAR_CORE}.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/${SCALAR_CORE}/verilator_support_${SCALAR_CORE}.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/${SCALAR_CORE}/verilator_main.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/verilator_support_${SCALAR_CORE}.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/verilator_support_${SCALAR_CORE}.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/verilator_main.cpp)
 
 if ( ${SCALAR_CORE} STREQUAL "cv32e40x" )
-    verilate(verilated_model SOURCES  ${DESIGN_SRC_OBI} ${CV32E40X_SOURCE} ${VICUNA_FPU_SRCS} ${VICUNA_SRCS} ${FPU_SS_SOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/${SCALAR_CORE}/vproc_top.sv
-                INCLUDE_DIRS  ${INCLUDE_OBI} ${CV32E40X_INCLUDE} ${VICUNA_FPU_INCS} ${VICUNA_INCS} ${FPU_SS_INCLUDE} ${CMAKE_CURRENT_SOURCE_DIR}
+    verilate(verilated_model SOURCES  ${DESIGN_SRC_OBI} ${CV32E40X_SOURCE} ${VICUNA_FPU_SRCS} ${VICUNA_SRCS} ${FPU_SS_SOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/vproc_top.sv
+                INCLUDE_DIRS  ${INCLUDE_OBI} ${CV32E40X_INCLUDE} ${VICUNA_FPU_INCS} ${VICUNA_INCS} ${FPU_SS_INCLUDE} ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE} ${CMAKE_CURRENT_SOURCE_DIR}
                 TOP_MODULE vproc_top 
                 PREFIX Vvproc_top
                 ${TRACE}                                    
-                VERILATOR_ARGS -cc -exe ${CMAKE_CURRENT_SOURCE_DIR}/${SCALAR_CORE}/verilator_main.cpp --unroll-count 1024
+                VERILATOR_ARGS -cc -exe ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/verilator_main.cpp --unroll-count 1024
                                 -Wno-WIDTH -Wno-PINMISSING -Wno-UNOPTFLAT   
                                 -Wno-UNSIGNED -Wno-IMPLICIT -Wno-LITENDIAN -Wno-CASEINCOMPLETE
                                 -Wno-SYMRSVDWORD -Wno-BLKANDNBLK -Wno-BLKSEQ -Wno-SYNCASYNCNET
@@ -210,6 +210,7 @@ if ( ${SCALAR_CORE} STREQUAL "cv32e40x" )
                                 -Wno-ENUMVALUE 
                                 -Wno-SELRANGE -Wno-LATCH #These might be caused from not connecting everything properly
                                 -Wno-IMPLICITSTATIC      
+                                -Wno-IEEEMAYDEPRECATE
                                 #+define+COREV_ASSERT_OFF       #Fixes UVM error with CV32E40X (Needed when not using -DVPROC_SVA)
                                 ${TRACE_FLAG} 
                                 --assert -DVPROC_SVA
@@ -225,12 +226,12 @@ if ( ${SCALAR_CORE} STREQUAL "cv32e40x" )
                                 -CFLAGS "-std=gnu++14 -O2")
 
 elseif( ${SCALAR_CORE} STREQUAL "cv32a60x" ) #TODO: Verify/Test support for floating point vector systems with this core.  Currently, only Zve32x tested.
-    verilate(verilated_model SOURCES ${DESIGN_SRC_OBI} ${CV32A60X_SOURCE} ${VICUNA_SRCS} ${CMAKE_CURRENT_SOURCE_DIR}/${SCALAR_CORE}/vproc_top.sv
-                INCLUDE_DIRS ${INCLUDE_OBI} ${CV32A60X_INCLUDE} ${VICUNA_INCS} ${CMAKE_CURRENT_SOURCE_DIR}
+    verilate(verilated_model SOURCES ${DESIGN_SRC_OBI} ${CV32A60X_SOURCE} ${VICUNA_SRCS} ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/vproc_top.sv
+                INCLUDE_DIRS ${INCLUDE_OBI} ${CV32A60X_INCLUDE} ${VICUNA_INCS} ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE} ${CMAKE_CURRENT_SOURCE_DIR}
                 TOP_MODULE vproc_top 
                 PREFIX Vvproc_top
                 ${TRACE}                                    
-                VERILATOR_ARGS -cc -exe ${CMAKE_CURRENT_SOURCE_DIR}/${SCALAR_CORE}/verilator_main.cpp --unroll-count 1024
+                VERILATOR_ARGS -cc -exe ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/verilator_main.cpp --unroll-count 1024
                                 -Wno-WIDTH -Wno-PINMISSING -Wno-UNOPTFLAT   
                                 -Wno-UNSIGNED -Wno-IMPLICIT -Wno-LITENDIAN -Wno-CASEINCOMPLETE
                                 -Wno-SYMRSVDWORD -Wno-BLKANDNBLK -Wno-BLKSEQ -Wno-SYNCASYNCNET
@@ -239,6 +240,7 @@ elseif( ${SCALAR_CORE} STREQUAL "cv32a60x" ) #TODO: Verify/Test support for floa
                                 -Wno-ENUMVALUE 
                                 -Wno-SELRANGE -Wno-LATCH #These might be caused from not connecting everything properly
                                 -Wno-IMPLICITSTATIC      
+                                -Wno-IEEEMAYDEPRECATE
                                 #+define+COREV_ASSERT_OFF       #Fixes UVM error with CV32E40X (Needed when not using -DVPROC_SVA)
                                 #--clk clk_i
                                 ${TRACE_FLAG} 
@@ -262,17 +264,17 @@ elseif( ${SCALAR_CORE} STREQUAL "cv32a60x" ) #TODO: Verify/Test support for floa
 
         file(GLOB VERILATOR_FILES "${CMAKE_CURRENT_SOURCE_DIR}/build/CMakeFiles/verilated_model.dir/Vvproc_top.dir/*.cpp" )
         target_sources(verilated_model_lib PUBLIC
-        ${TOOLCHAIN_TOP}/verilator/include/verilated.cpp
-        ${TOOLCHAIN_TOP}/verilator/include/verilated_vcd_c.cpp
-        ${TOOLCHAIN_TOP}/verilator/include/verilated_threads.cpp
+        ${VERILATOR_ROOT}/include/verilated.cpp
+        ${VERILATOR_ROOT}/include/verilated_vcd_c.cpp
+        ${VERILATOR_ROOT}/include/verilated_threads.cpp
         ${VERILATOR_FILES}
         )
 
         target_include_directories(verilated_model_lib PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/build/CMakeFiles/verilated_model.dir/Vvproc_top.dir/
-        ${TOOLCHAIN_TOP}/verilator/include/gtkwave/
-        ${TOOLCHAIN_TOP}/verilator/include/vltstd/
-        ${TOOLCHAIN_TOP}/verilator/include/
+        ${VERILATOR_ROOT}/include/gtkwave/
+        ${VERILATOR_ROOT}/include/vltstd/
+        ${VERILATOR_ROOT}/include/
         )
 
 
