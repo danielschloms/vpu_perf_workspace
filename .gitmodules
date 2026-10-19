@@ -1,0 +1,18 @@
+[submodule "etiss-pe"]
+	path = etiss-pe
+	url = git@github.com:danielschloms/perfsim_workspace.git
+[submodule "rtl/vicuna2/rtl/fpu_ss"]
+	path = rtl/vicuna2/rtl/fpu_ss
+	url = git@github.com:ParkerJones567/fpu_ss.git
+[submodule "rtl/vicuna2/rtl/cv32a60x"]
+	path = rtl/vicuna2/rtl/cv32a60x
+	url = git@github.com:ParkerJones567/cva6.git
+[submodule "rtl/vicuna2/rtl/cv32e40x"]
+	path = rtl/vicuna2/rtl/cv32e40x
+	url = git@github.com:ParkerJones567/cv32e40x_f_zhf.git
+[submodule "programs/src/embench-iot/embench-iot"]
+	path = programs/src/embench-iot/embench-iot
+	url = https://github.com/embench/embench-iot.git
+[submodule "rtl/vicuna2/rtl/vicuna2_core"]
+	path = rtl/vicuna2/rtl/vicuna2_core
+	url = https://github.com/vproc/vicuna2_core.git

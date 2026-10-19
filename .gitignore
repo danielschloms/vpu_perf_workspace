@@ -1,15 +1,3 @@
-# Third Party Stuff
-Third_Party
-Third_Party_Sources
-
-# Repositories
-Perf_Comparison
-Perfsim
-RISCV_Programs
-Vicuna2
-Softvector
-
-# Other
+build/
 .env
-
 opencode.json
