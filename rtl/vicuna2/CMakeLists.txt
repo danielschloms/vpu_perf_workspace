@@ -58,15 +58,28 @@ message(STATUS "Using Verilator at ${VERILATOR_BIN}")
 ########
 include(${CMAKE_CURRENT_SOURCE_DIR}/vector_config.cmake)
 message("Selected SCALAR_CORE = ${SCALAR_CORE}")
+message("Selected RISCV_ARCH = ${RISCV_ARCH}")
+message("Selected VREG_W = ${VREG_W}")
+message("Selected VLANE_W = ${VLANE_W}")
+message("Selected VMEM_W = ${VMEM_W}")
+message("Selected VMEM_PORTS = ${VMEM_PORTS}")
+
+# Export configuration to the environment so the vicuna2_core CMakeLists
+# and its config.mk (vproc_config.sv generator) pick up the chosen values.
 set(ENV{VPROC_PIPELINES} ${VPROC_PIPELINES})
 message("Selected VPROC_PIPELINES = ${VPROC_PIPELINES}")
-message("Selected RISCV_ARCH = ${RISCV_ARCH}")
 set(ENV{VREG_W} ${VREG_W})
-message("Selected VREG_W = ${VREG_W}")
+set(ENV{VLANE_W} ${VLANE_W})
+set(ENV{VMEM_W} ${VMEM_W})
+
 set(MEM_W ${VMEM_W})
-message("Selected MEM_W = ${MEM_W}")
 set(MEM_PORTS ${VMEM_PORTS})
-message("Selected MEM_PORTS = ${MEM_PORTS}")
+
+# Configuration name and expected build-directory layout, e.g.
+#   rtl/vicuna2/build/<scalar_core>/<riscv_arch>_zvl<vlen>_vl<lane_width>
+set(VPROC_CONFIG_NAME "${RISCV_ARCH}_zvl${VREG_W}_vl${VLANE_W}")
+message("Selected config name = ${VPROC_CONFIG_NAME}")
+message("Build directory       = ${CMAKE_BINARY_DIR}")
 
 set(MEM_SZ 4194304)
 
@@ -262,7 +275,7 @@ elseif( ${SCALAR_CORE} STREQUAL "cv32a60x" ) #TODO: Verify/Test support for floa
         # Compile verilator model as a shared library for linking with gem5.  This prevents a rebuild of gem5 every time the model changes.  Currently only supported for CVA6
         add_library(verilated_model_lib SHARED)
 
-        file(GLOB VERILATOR_FILES "${CMAKE_CURRENT_SOURCE_DIR}/build/CMakeFiles/verilated_model.dir/Vvproc_top.dir/*.cpp" )
+        file(GLOB VERILATOR_FILES "${CMAKE_BINARY_DIR}/CMakeFiles/verilated_model.dir/Vvproc_top.dir/*.cpp" )
         target_sources(verilated_model_lib PUBLIC
         ${VERILATOR_ROOT}/include/verilated.cpp
         ${VERILATOR_ROOT}/include/verilated_vcd_c.cpp
@@ -271,7 +284,7 @@ elseif( ${SCALAR_CORE} STREQUAL "cv32a60x" ) #TODO: Verify/Test support for floa
         )
 
         target_include_directories(verilated_model_lib PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/build/CMakeFiles/verilated_model.dir/Vvproc_top.dir/
+        ${CMAKE_BINARY_DIR}/CMakeFiles/verilated_model.dir/Vvproc_top.dir/
         ${VERILATOR_ROOT}/include/gtkwave/
         ${VERILATOR_ROOT}/include/vltstd/
         ${VERILATOR_ROOT}/include/
