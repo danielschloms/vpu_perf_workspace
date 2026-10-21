@@ -13,7 +13,7 @@
 
 # Scalar core to instantiate the vector unit with.
 # Currently supported: cv32e40x, cv32a60x
-set(SCALAR_CORE "cv32e40x" CACHE STRING "Scalar core: cv32e40x | cv32a60x")
+set(SCALAR_CORE "cv32a60x" CACHE STRING "Scalar core: cv32e40x | cv32a60x")
 
 # RISC-V architecture / extension configuration.
 # Currently supported: rv32im, rv32im_zve32x, rv32imf, rv32imf_zfh,

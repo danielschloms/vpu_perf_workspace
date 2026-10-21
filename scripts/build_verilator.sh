@@ -16,7 +16,7 @@
 #   scripts/build_verilator.sh [options]
 #
 # Options:
-#   --scalar-core <name>   Scalar core (cv32e40x | cv32a60x)      [default: cv32e40x]
+#   --scalar-core <name>   Scalar core (cv32e40x | cv32a60x)      [default: cv32a60x]
 #   --arch <isa>           RISC-V architecture config (RISCV_ARCH) [default: rv32im_zve32x]
 #   --vlen <bits>          Vector register width / VLEN (VREG_W)   [default: 128]
 #   --lane-width <bits>    Vector lane width (VLANE_W)             [default: 32]
@@ -38,7 +38,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SOURCE_DIR="${REPO_ROOT}/rtl/vicuna2"
 
 # Defaults (must match rtl/vicuna2/vector_config.cmake)
-SCALAR_CORE="${SCALAR_CORE:-cv32e40x}"
+SCALAR_CORE="${SCALAR_CORE:-cv32a60x}"
 RISCV_ARCH="${RISCV_ARCH:-rv32im_zve32x}"
 VREG_W="${VREG_W:-128}"
 VLANE_W="${VLANE_W:-32}"
