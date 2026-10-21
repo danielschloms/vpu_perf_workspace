@@ -7,32 +7,6 @@
 // level interface signals (i.e. memory interfaces) should be handled by the
 // user.
 #include "verilator_support_cv32e40x.h"
-#include <cstdint>
-#include <cstdio>
-#include <fstream>
-#include <iomanip>
-
-// --- Private globals ---
-
-auto inst_trace = false;
-auto inst_trace_file = std::ofstream{};
-
-uint64_t cycles = 0;
-uint64_t trace_timesteps = 0;
-uint32_t current_WB_PC = 0;
-uint32_t last_WB_PC = 0;
-uint32_t instr = 0;
-unsigned vector_instr = 0;
-unsigned sum_vec_lengths = 0;
-unsigned sum_vec_lengths_bytes = 0;
-float sum_vec_percentage = 0.0;
-uint32_t cycles_stalled = 0;
-uint32_t last_IF_PC = 0;
-
-// --- Private function declarations
-
-// --- Public function definitions ---
-
 /*
  * Functions and Variables used to detect a stall.  Returns true if IF_PC in
  * CV32E40X core has not changed in the provided number of cycles ARGS:
@@ -117,48 +91,35 @@ void advance_half_cycle(Vvproc_top *top, int clk_val) {
  *
  *   *mem           - pointer to memory space
  */
-void update_mem_load(uint32_t address, bool req_valid, uint32_t mem_w,
+void update_mem_load(Vvproc_top *top, uint32_t address, bool req_valid,
+                     bool req_write, bool req_src, uint32_t mem_w,
                      uint32_t mem_lat, uint32_t mem_size,
                      unsigned char *model_data_i, bool *model_valid_i,
-                     bool *model_err_i, unsigned char **queue_data,
-                     bool *queue_valid, bool *queue_err, unsigned char *mem) {
+                     bool *model_err_i, bool *model_src_i,
+                     unsigned char **queue_data, bool *queue_valid,
+                     bool **queue_meta, unsigned char *mem) {
 
   uint32_t address_mask = address & 0x7FFFFFFF;
-  // Put read data on the processor read port.
-  for (int i = 0; i < mem_w / 8; i++) {
-    model_data_i[i] = queue_data[mem_lat - 1][i];
-  }
-  *model_valid_i = queue_valid[mem_lat - 1];
-  *model_err_i = queue_err[mem_lat - 1];
-
-  // Next, advance fifo buffers by one cycle
-
-  for (int i = mem_lat - 1; i > 0; i--) {
-
-    for (int j = 0; j < mem_w / 8; j++) {
-      queue_data[i][j] = queue_data[i - 1][j];
-    }
-    queue_valid[i] = queue_valid[i - 1];
-    queue_err[i] = queue_err[i - 1];
-  }
-
   // Next evaluate an outstanding request and put at the end of the buffer.
-  bool valid = (address_mask < mem_size) & req_valid;
+  volatile bool valid = (address_mask < mem_size) & req_valid;
 
   // set new queue entry to zero
   for (int i = 0; i < mem_w / 8; i++) {
     queue_data[0][i] = 0;
   }
-
   if (valid) {
     // Copy each valid byte into buffer
     for (int i = 0; i < mem_w / 8; i++) {
       queue_data[0][i] |= mem[address_mask + i];
+      // queue_data[0][i] |= 0;
     }
+    queue_valid[0] = req_valid;
+    queue_meta[0][0] = false; // never an error (conflicts with write signal)
+    queue_meta[0][1] = req_src;
+    queue_meta[0][2] = 0;
+  } else if (req_valid) {
+    fprintf(stderr, "ERROR: READ ATTEMPTED OUTSIDE OF VALID ADDRESS SPACE\n");
   }
-
-  queue_valid[0] = valid;
-  queue_err[0] = !valid;
 }
 
 /*
@@ -175,10 +136,15 @@ void update_mem_load(uint32_t address, bool req_valid, uint32_t mem_w,
  *
  *   *mem           - pointer to memory space
  */
-void update_mem_write(uint32_t address, bool req_valid, uint32_t mem_w,
-                      uint32_t mem_lat, uint32_t mem_size,
-                      unsigned char *model_data_o, unsigned char *model_be_o,
-                      bool *queue_valid, bool *queue_err, unsigned char *mem) {
+void update_mem_write(Vvproc_top *top, uint32_t address, bool req_valid,
+                      bool req_src, uint32_t mem_w, uint32_t mem_lat,
+                      uint32_t mem_size, unsigned char *model_data_o,
+                      unsigned char *model_be_o, bool *mem_w_valid_i,
+                      bool *queue_valid, bool **queue_meta,
+                      unsigned char *mem) {
+  for (int i = mem_lat - 1; i > 0; i--) {
+    queue_valid[i] = queue_valid[i - 1];
+  }
   uint32_t address_mask = address & 0x7FFFFFFF;
   if (req_valid) {
     if (address_mask < mem_size) {
@@ -191,10 +157,26 @@ void update_mem_write(uint32_t address, bool req_valid, uint32_t mem_w,
       fprintf(stderr,
               "ERROR: WRITE ATTEMPTED OUTSIDE OF VALID ADDRESS SPACE\n");
     }
-    queue_valid[mem_lat - 1] =
-        true; // need to signal valid on store interface for accepted
-              // transaction.  Can always respond in 1 cycle due to store buffer
-    queue_err[mem_lat - 1] = false;
+    // queue_valid[mem_lat-1] = true; //need to signal valid on store interface
+    // for accepted transaction.  Can always respond in 1 cycle due to store
+    // buffer - TODO: signal over mem_w_valid_i, but needs to be delayed 1 cycle
+    //  if (!req_src) //only scalar interface uses mem_w_valid, vector uses
+    //  mem_r_valid even for stores TODO: Refactor this (separate interfaces
+    //  completely?)
+    //  {
+    //      //*mem_w_valid_i = 1;
+    //      //top->mem_src_i = 0;
+    //      //top->mem_id_i = top->mem_id_o;
+    //  } else {
+    //      //top->mem_rvalid_i = 1;
+    //      //top->mem_src_i = 1;
+    //      //top->mem_id_i = top->mem_id_o;
+    //  }
+    queue_valid[0] =
+        req_valid; // on successful write, override initial values from mem_load
+    queue_meta[0][0] = false; // never an error (conflicts with write signal)
+    queue_meta[0][1] = req_src;
+    queue_meta[0][2] = 1;
   }
 }
 
@@ -302,8 +284,8 @@ void dump_mem_region(uint32_t start_addr, uint32_t end_addr, unsigned char *mem,
 /*
  *   Cycle count update
  */
-void update_trace_timesteps() {
-  trace_timesteps++;
+void update_cycles() {
+  cycles++;
   return;
 }
 
@@ -316,9 +298,6 @@ void update_instructions(Vvproc_top *top) {
   current_WB_PC = top->vproc_top->core->instruction_wb_pc;
   if (current_WB_PC != last_WB_PC) {
     instr++;
-    if (inst_trace) {
-      print_trace(top->vproc_top->core->instruction_wb);
-    }
   }
   last_WB_PC = current_WB_PC;
   return;
@@ -330,10 +309,11 @@ void update_instructions(Vvproc_top *top) {
  *   - *top          - pointer to verilator top module
  */
 void update_vector_count(Vvproc_top *top) {
-  if (top->vproc_top->vcore_result_valid &&
-      top->vproc_top->vcore_result_ready) {
-    vector_instr++;
-  }
+  // if (top->vproc_top->vcore_result_valid &&
+  // top->vproc_top->vcore_result_ready)
+  // {
+  //     vector_instr++;
+  // }
   return;
 }
 
@@ -343,74 +323,64 @@ void update_vector_count(Vvproc_top *top) {
  *   - *top          - pointer to verilator top module
  */
 void update_avg_vector_len(Vvproc_top *top) {
-  if (top->vproc_top->vcore_result_valid &&
-      top->vproc_top->vcore_result_ready) {
-    sum_vec_lengths +=
-        top->vproc_top
-            ->csr_vl_o; // running sum of number of elements in vectors
-    int cur_vec_len_bytes = 0;
-    switch ((top->vproc_top->csr_vtype_o >> 3) & 7) // sew stored in bits [5:3]
-    {
-    case 0: // sew == 8
-      sum_vec_lengths_bytes +=
-          top->vproc_top->csr_vl_o; // each element is one byte
-      cur_vec_len_bytes = top->vproc_top->csr_vl_o;
-      break;
-    case 1: // sew == 16
-      sum_vec_lengths_bytes +=
-          top->vproc_top->csr_vl_o * 2; // each element two bytes
-      cur_vec_len_bytes = top->vproc_top->csr_vl_o * 2;
-      break;
-    case 2: // sew == 32
-      sum_vec_lengths_bytes +=
-          top->vproc_top->csr_vl_o * 4; // each element four bytes
-      cur_vec_len_bytes = top->vproc_top->csr_vl_o * 4;
-      break;
-    default:
-      fprintf(stderr, "UNSUPPORTED SEW DETECTED\n");
-    }
+  //  if( top->vproc_top->vcore_result_valid &&
+  //  top->vproc_top->vcore_result_ready){
+  //     sum_vec_lengths+= top->vproc_top->csr_vl_o; //running sum of number of
+  //     elements in vectors int cur_vec_len_bytes = 0; switch
+  //     ((top->vproc_top->csr_vtype_o >> 3) & 7) //sew stored in bits [5:3]
+  //     {
+  //         case 0: //sew == 8
+  //         sum_vec_lengths_bytes+= top->vproc_top->csr_vl_o; //each element is
+  //         one byte cur_vec_len_bytes = top->vproc_top->csr_vl_o; break; case
+  //         1: //sew == 16 sum_vec_lengths_bytes+= top->vproc_top->csr_vl_o *
+  //         2; // each element two bytes cur_vec_len_bytes =
+  //         top->vproc_top->csr_vl_o * 2; break; case 2: //sew == 32
+  //         sum_vec_lengths_bytes+= top->vproc_top->csr_vl_o * 4; // each
+  //         element four bytes cur_vec_len_bytes = top->vproc_top->csr_vl_o *
+  //         4; break; default: fprintf(stderr, "UNSUPPORTED SEW DETECTED\n");
+  //     }
 
-    switch (top->vproc_top->csr_vtype_o & 7) // LMUL stored in bits [2:0]
-    {
-    case 0: // LMUL = 1
-      sum_vec_lengths_bytes +=
-          ((float)cur_vec_len_bytes) /
-          ((float)top->vproc_top->csr_vlen_b_o); // each element is one byte
+  //     switch (top->vproc_top->csr_vtype_o & 7) //LMUL stored in bits [2:0]
+  //     {
+  //         case 0: //LMUL = 1
+  //             sum_vec_lengths_bytes+=
+  //             ((float)cur_vec_len_bytes)/((float)top->vproc_top->csr_vlen_b_o);
+  //             //each element is one byte
 
-    case 1: // LMUL == 2
-      sum_vec_percentage +=
-          ((float)cur_vec_len_bytes) /
-          ((float)top->vproc_top->csr_vlen_b_o * 2); // 2 vector regs in group
-      break;
-    case 2: // LMUL == 4
-      sum_vec_lengths_bytes +=
-          ((float)cur_vec_len_bytes) /
-          ((float)top->vproc_top->csr_vlen_b_o * 4); // 4 vector regs in group
-      break;
-    case 4: // LMUL == 8
-      sum_vec_lengths_bytes +=
-          ((float)cur_vec_len_bytes) /
-          ((float)top->vproc_top->csr_vlen_b_o * 8); // 4 vector regs in group
-      break;
-    case 7: // LMUL = 1/2
-      sum_vec_lengths_bytes +=
-          ((float)cur_vec_len_bytes) / ((float)top->vproc_top->csr_vlen_b_o /
-                                        2.0); // each element is one byte
-    case 6:                                   // LMUL = 1/4
-      sum_vec_lengths_bytes +=
-          ((float)cur_vec_len_bytes) / ((float)top->vproc_top->csr_vlen_b_o /
-                                        4.0); // each element is one byte
-    case 5:                                   // LMUL = 1/8
-      sum_vec_lengths_bytes +=
-          ((float)cur_vec_len_bytes) / ((float)top->vproc_top->csr_vlen_b_o /
-                                        8.0); // each element is one byte
-    default:
-      sum_vec_lengths_bytes +=
-          ((float)cur_vec_len_bytes) /
-          ((float)top->vproc_top->csr_vlen_b_o); // each element is one byte
-      break;
-    }
-  }
+  //         case 1: //LMUL == 2
+  //             sum_vec_percentage +=
+  //             ((float)cur_vec_len_bytes)/((float)top->vproc_top->csr_vlen_b_o
+  //             * 2); // 2 vector regs in group
+  //         break;
+  //         case 2: //LMUL == 4
+  //             sum_vec_lengths_bytes+=
+  //             ((float)cur_vec_len_bytes)/((float)top->vproc_top->csr_vlen_b_o
+  //             * 4); // 4 vector regs in group
+  //         break;
+  //         case 4: //LMUL == 8
+  //             sum_vec_lengths_bytes+=
+  //             ((float)cur_vec_len_bytes)/((float)top->vproc_top->csr_vlen_b_o
+  //             * 8); // 4 vector regs in group
+  //         break;
+  //         case 7: //LMUL = 1/2
+  //             sum_vec_lengths_bytes+=
+  //             ((float)cur_vec_len_bytes)/((float)top->vproc_top->csr_vlen_b_o/2.0);
+  //             //each element is one byte
+  //         case 6: //LMUL = 1/4
+  //             sum_vec_lengths_bytes+=
+  //             ((float)cur_vec_len_bytes)/((float)top->vproc_top->csr_vlen_b_o/4.0);
+  //             //each element is one byte
+  //         case 5: //LMUL = 1/8
+  //             sum_vec_lengths_bytes+=
+  //             ((float)cur_vec_len_bytes)/((float)top->vproc_top->csr_vlen_b_o/8.0);
+  //             //each element is one byte
+  //         default:
+  //             sum_vec_lengths_bytes+=
+  //             ((float)cur_vec_len_bytes)/((float)top->vproc_top->csr_vlen_b_o);
+  //             //each element is one byte
+  //         break;
+  //     }
+  // }
   return;
 }
 
@@ -420,7 +390,7 @@ void update_avg_vector_len(Vvproc_top *top) {
  *   - *top          - pointer to verilator top module
  */
 void update_stats(Vvproc_top *top) {
-  update_trace_timesteps();
+  update_cycles();
   update_instructions(top);
   update_vector_count(top);
   update_avg_vector_len(top);
@@ -430,7 +400,7 @@ void update_stats(Vvproc_top *top) {
  * Report current state of all collected statistics
  */
 void report_stats() {
-  fprintf(stderr, "Total Cycles: %ld\n", cycles);
+  fprintf(stderr, "Total Cycles: %d\n", cycles);
   fprintf(stderr, "Instruction Count: %d CPI : %f \n\n", instr,
           ((float)(cycles)) / ((float)instr));
 
@@ -440,7 +410,7 @@ void report_stats() {
           ((float)(sum_vec_lengths)) / ((float)vector_instr));
   fprintf(stderr, "AVG VL Bytes: %f  \n\n",
           ((float)(sum_vec_lengths_bytes)) / ((float)vector_instr));
-  fprintf(stderr, "AVG VREG Usage %%: %f  \n\n",
+  fprintf(stderr, "AVG VREG Usage %: %f  \n\n",
           ((float)(sum_vec_percentage)) / ((float)vector_instr) * 100);
   return;
 }
@@ -455,10 +425,10 @@ void report_stats() {
 void update_vcd(VerilatedTrace_t *tfp, uint32_t begin_cycles,
                 uint32_t end_cycles) {
   if (tfp != NULL) {
-    if ((trace_timesteps >= begin_cycles) && (trace_timesteps < end_cycles) ||
+    if ((cycles >= begin_cycles) && (cycles < end_cycles) ||
         (end_cycles == 0)) {
 #ifdef TRACE_VCD
-      tfp->dump(trace_timesteps);
+      tfp->dump(cycles);
 #endif
     }
   }
@@ -557,35 +527,4 @@ void update_vreg_commit(Vvproc_top *top, int vreg_w, FILE *commit_log) {
   }
 #endif
   return;
-}
-
-/**
- * @brief Update the cycle count
- */
-auto update_cycles() -> void { cycles++; }
-
-/**
- * @brief Enable instruction tracing
- * @param path - The path to the output file
- */
-auto enable_inst_trace(char const *path) -> void {
-  inst_trace = true;
-  inst_trace_file.open(path);
-}
-
-/**
- * @brief Format and write PC, instruction assembly, cycle, and cycle delta to
- * file
- * @param pc
- * @param instruction
- * @param cycle
- */
-auto print_trace(uint32_t insn) -> void {
-  static uint64_t last_cycle = 0;
-  inst_trace_file << std::hex << std::setw(8) << std::setfill('0')
-                  << (current_WB_PC & 0x7FFFFFFF) << ", ";
-  inst_trace_file << std::setw(8) << std::setfill('0') << insn;
-  inst_trace_file << ", " << std::dec << cycles << ", " << cycles - last_cycle
-                  << "\n";
-  last_cycle = cycles;
 }
