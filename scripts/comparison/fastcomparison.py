@@ -41,9 +41,17 @@ class CmpResult:
 
 
 def read_addresses(
-    verilator_dump_file: pathlib.Path, etiss_dump_file: pathlib.Path
+    verilator_dump_file: pathlib.Path,
+    etiss_dump_file: pathlib.Path,
+    verilator_addr_offset: int = 0,
 ) -> tuple[dict, bool]:
-    """Returns a dictionary with start and end addresses."""
+    """Returns a dictionary with start and end addresses.
+
+    ``verilator_addr_offset`` translates the Verilator objdump (ELF logical)
+    addresses into the address space the model writes in its ``--itrace``.  The
+    cv32a60x model records committed PCs on the physical address bus (base
+    0x80000000), so the two spaces differ by a constant offset.
+    """
     fname = "CMP: read_addresses"
     verilator_start = 0
     verilator_end = 0
@@ -62,6 +70,9 @@ def read_addresses(
     except:
         error(f"(AddressMatcher) Could not find {verilator_dump_file} Verilator dump")
         ok = False
+
+    verilator_start += verilator_addr_offset
+    verilator_end += verilator_addr_offset
 
     if verilator_start == 0:
         error(fname, "Error Verilator start")
@@ -266,9 +277,12 @@ def compare_fast(
     etiss_trace_file: pathlib.Path,
     verilator_trace_file: pathlib.Path,
     match_file: pathlib.Path,
+    verilator_addr_offset: int = 0,
 ) -> tuple[CmpResult, bool]:
 
-    addresses, ok_addresses = read_addresses(verilator_dump_file, etiss_dump_file)
+    addresses, ok_addresses = read_addresses(
+        verilator_dump_file, etiss_dump_file, verilator_addr_offset
+    )
 
     if not ok_addresses:
         return (0, 0, 0, 0, 0, False)

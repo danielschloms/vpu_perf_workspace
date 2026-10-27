@@ -7,6 +7,14 @@
 // level interface signals (i.e. memory interfaces) should be handled by the
 // user.
 #include "verilator_support_cv32e40x.h"
+#include <cstdint>
+#include <fstream>
+#include <iomanip>
+
+// --- Private globals ---
+static auto inst_trace = false;
+static auto inst_trace_file = std::ofstream{};
+
 /*
  * Functions and Variables used to detect a stall.  Returns true if IF_PC in
  * CV32E40X core has not changed in the provided number of cycles ARGS:
@@ -298,9 +306,36 @@ void update_instructions(Vvproc_top *top) {
   current_WB_PC = top->vproc_top->core->instruction_wb_pc;
   if (current_WB_PC != last_WB_PC) {
     instr++;
+    if (inst_trace) {
+      print_trace();
+    }
   }
   last_WB_PC = current_WB_PC;
   return;
+}
+
+/**
+ * @brief Enable instruction tracing
+ * @param path - The path to the output file
+ */
+auto enable_inst_trace(char const *path) -> void
+{
+  inst_trace = true;
+  inst_trace_file.open(path);
+}
+
+/**
+ * @brief Format and write PC, instruction index, cycle, and cycle delta to file
+ */
+auto print_trace() -> void
+{
+  static uint64_t last_cycle = 0;
+  inst_trace_file << std::hex << std::setw(8) << std::setfill('0')
+                  << (uint32_t)current_WB_PC << ", ";
+  inst_trace_file << std::setw(8) << std::setfill('0') << instr;
+  inst_trace_file << ", " << std::dec << cycles << ", " << cycles - last_cycle
+                  << "\n";
+  last_cycle = cycles;
 }
 
 /*

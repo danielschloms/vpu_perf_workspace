@@ -88,63 +88,63 @@ set(MEM_SZ 4194304)
 ######################
 
 if(${RISCV_ARCH} STREQUAL "rv32im") #Build only scalar core
-    set(XIF_FLAG "" )
-    set(RISCV_F "" )
-    set(RISCV_ZFH "" )
-    set(RISCV_ZVE32X "" )
-    set(RISCV_ZVE32F "" )
-    set(RISCV_ZVFH "" )
+    set(XIF_FLAG "")
+    set(RISCV_F "")
+    set(RISCV_ZFH "")
+    set(RISCV_ZVE32X "")
+    set(RISCV_ZVE32F "")
+    set(RISCV_ZVFH "")
 
 elseif(${RISCV_ARCH} STREQUAL "rv32imf") #Build scalar core with FPU on the Xif interface
-    set(XIF_FLAG "-DXIF_ON" )
-    set(RISCV_F "-DRISCV_F" )
-    set(RISCV_ZFH "" )
-    set(RISCV_ZVE32X "" )
-    set(RISCV_ZVE32F "" )
-    set(RISCV_ZVFH "" )
+    set(XIF_FLAG "-DXIF_ON")
+    set(RISCV_F "-DRISCV_F")
+    set(RISCV_ZFH "")
+    set(RISCV_ZVE32X "")
+    set(RISCV_ZVE32F "")
+    set(RISCV_ZVFH "")
     #C++ Flags
     add_definitions(-DRISCV_F)
 
 elseif(${RISCV_ARCH} STREQUAL "rv32imf_zfh") #Build scalar core with FPU on the Xif interface with half-float support
-    set(XIF_FLAG "-DXIF_ON" )
-    set(RISCV_F "-DRISCV_F" )
-    set(RISCV_ZFH "-DRISCV_ZFH" )
-    set(RISCV_ZVE32X "" )
-    set(RISCV_ZVE32F "" )
-    set(RISCV_ZVFH "" )
+    set(XIF_FLAG "-DXIF_ON")
+    set(RISCV_F "-DRISCV_F")
+    set(RISCV_ZFH "-DRISCV_ZFH")
+    set(RISCV_ZVE32X "")
+    set(RISCV_ZVE32F "")
+    set(RISCV_ZVFH "")
     #C++ Flags
     add_definitions(-DRISCV_F)
     add_definitions(-DRISCV_ZFH)
 
 elseif(${RISCV_ARCH} STREQUAL "rv32im_zve32x") #Build scalar core with Vicuna on the Xif interface
-    set(XIF_FLAG "-DXIF_ON" )
-    set(RISCV_F "" )
-    set(RISCV_ZFH "" )
-    set(RISCV_ZVE32X "-DRISCV_ZVE32X" )
-    set(RISCV_ZVE32F "" )
-    set(RISCV_ZVFH "" )
+    set(XIF_FLAG "-DXIF_ON")
+    set(RISCV_F "")
+    set(RISCV_ZFH "")
+    set(RISCV_ZVE32X "-DRISCV_ZVE32X")
+    set(RISCV_ZVE32F "")
+    set(RISCV_ZVFH "")
     #C++ Flags
     add_definitions(-DRISCV_ZVE32X)
 
 elseif(${RISCV_ARCH} STREQUAL "rv32imf_zve32f") #Build scalar core with Vicuna and FPU on the Xif interface
-    set(XIF_FLAG "-DXIF_ON" )
-    set(RISCV_F "-DRISCV_F" )
-    set(RISCV_ZFH "" )
-    set(RISCV_ZVE32X "-DRISCV_ZVE32X" )
-    set(RISCV_ZVE32F "-DRISCV_ZVE32F" )
-    set(RISCV_ZVFH "" )
+    set(XIF_FLAG "-DXIF_ON")
+    set(RISCV_F "-DRISCV_F")
+    set(RISCV_ZFH "")
+    set(RISCV_ZVE32X "-DRISCV_ZVE32X")
+    set(RISCV_ZVE32F "-DRISCV_ZVE32F")
+    set(RISCV_ZVFH "")
     #C++ Flags
     add_definitions(-DRISCV_F)
     add_definitions(-DRISCV_ZVE32X)
     add_definitions(-DRISCV_ZVE32F)
 
 elseif(${RISCV_ARCH} STREQUAL "rv32imf_zfh_zve32f_zvfh") #Build scalar core with Vicuna (+floating point + half precision float) and FPU on the Xif interface
-    set(XIF_FLAG "-DXIF_ON" )
-    set(RISCV_F "-DRISCV_F" )
-    set(RISCV_ZFH "-DRISCV_ZFH" )
-    set(RISCV_ZVE32X "-DRISCV_ZVE32X" )
-    set(RISCV_ZVE32F "-DRISCV_ZVE32F" )
-    set(RISCV_ZVFH "-DRISCV_ZVFH" )
+    set(XIF_FLAG "-DXIF_ON")
+    set(RISCV_F "-DRISCV_F")
+    set(RISCV_ZFH "-DRISCV_ZFH")
+    set(RISCV_ZVE32X "-DRISCV_ZVE32X")
+    set(RISCV_ZVE32F "-DRISCV_ZVE32F")
+    set(RISCV_ZVFH "-DRISCV_ZVFH")
     #C++ Flags
     add_definitions(-DRISCV_F)
     add_definitions(-DRISCV_ZFH)
@@ -170,9 +170,9 @@ add_subdirectory(rtl rtl)
 ### TRACE FLAGS
 
 #if(TRACE)
-   add_definitions(-DTRACE_VCD)
-   set(TRACE TRACE)
-    
+add_definitions(-DTRACE_VCD)
+set(TRACE TRACE)
+
 #    if(TRACE_FULL)
 #        set(TRACE_FLAG  ) #no --trace-depth flag defaults to entire model
 #    else()
@@ -188,7 +188,7 @@ set(VICUNA_MODE -DOLD_VICUNA)
 #This always needs to be set
 set(READ_MODE -DFORCE_ALIGNED_READS)
 #if(FORCE_ALIGNED_READS)
-    #set(READ_MODE -DFORCE_ALIGNED_READS)
+#set(READ_MODE -DFORCE_ALIGNED_READS)
 #endif()
 
 #CV32A60X sends Issue and Commit signals at the same time, change operating mode
@@ -208,87 +208,87 @@ target_sources(verilated_model PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/verilator_support_${SCALAR_CORE}.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/verilator_main.cpp)
 
-if ( ${SCALAR_CORE} STREQUAL "cv32e40x" )
-    verilate(verilated_model SOURCES  ${DESIGN_SRC_OBI} ${CV32E40X_SOURCE} ${VICUNA_FPU_SRCS} ${VICUNA_SRCS} ${FPU_SS_SOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/vproc_top.sv
-                INCLUDE_DIRS  ${INCLUDE_OBI} ${CV32E40X_INCLUDE} ${VICUNA_FPU_INCS} ${VICUNA_INCS} ${FPU_SS_INCLUDE} ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE} ${CMAKE_CURRENT_SOURCE_DIR}
-                TOP_MODULE vproc_top 
-                PREFIX Vvproc_top
-                ${TRACE}                                    
-                VERILATOR_ARGS -cc -exe ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/verilator_main.cpp --unroll-count 1024
-                                -Wno-WIDTH -Wno-PINMISSING -Wno-UNOPTFLAT   
-                                -Wno-UNSIGNED -Wno-IMPLICIT -Wno-LITENDIAN -Wno-CASEINCOMPLETE
-                                -Wno-SYMRSVDWORD -Wno-BLKANDNBLK -Wno-BLKSEQ -Wno-SYNCASYNCNET
-                                -Wno-COMBDLY 
-                                -Wno-WIDTHCONCAT
-                                -Wno-ENUMVALUE 
-                                -Wno-SELRANGE -Wno-LATCH #These might be caused from not connecting everything properly
-                                -Wno-IMPLICITSTATIC      
-                                -Wno-IEEEMAYDEPRECATE
-                                #+define+COREV_ASSERT_OFF       #Fixes UVM error with CV32E40X (Needed when not using -DVPROC_SVA)
-                                ${TRACE_FLAG} 
-                                --assert -DVPROC_SVA
-                                -GMEM_W=${MEM_W} -GVMEM_W=${VMEM_W} -GMEM_PORTS=${MEM_PORTS}
-                                ${VICUNA_MODE}
-                                ${READ_MODE}
-                                ${XIF_FLAG}
-                                ${RISCV_F}
-                                ${RISCV_ZFH}
-                                ${RISCV_ZVE32X}
-                                ${RISCV_ZVE32F}
-                                ${RISCV_ZVFH}
-                                -CFLAGS "-std=gnu++14 -O2")
+if(${SCALAR_CORE} STREQUAL "cv32e40x")
+    verilate(verilated_model SOURCES ${DESIGN_SRC_OBI} ${CV32E40X_SOURCE} ${VICUNA_FPU_SRCS} ${VICUNA_SRCS} ${FPU_SS_SOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/vproc_top.sv
+        INCLUDE_DIRS ${INCLUDE_OBI} ${CV32E40X_INCLUDE} ${VICUNA_FPU_INCS} ${VICUNA_INCS} ${FPU_SS_INCLUDE} ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE} ${CMAKE_CURRENT_SOURCE_DIR}
+        TOP_MODULE vproc_top
+        PREFIX Vvproc_top
+        # ${TRACE}
+        VERILATOR_ARGS -cc -exe ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/verilator_main.cpp --unroll-count 1024
+        -Wno-WIDTH -Wno-PINMISSING -Wno-UNOPTFLAT
+        -Wno-UNSIGNED -Wno-IMPLICIT -Wno-LITENDIAN -Wno-CASEINCOMPLETE
+        -Wno-SYMRSVDWORD -Wno-BLKANDNBLK -Wno-BLKSEQ -Wno-SYNCASYNCNET
+        -Wno-COMBDLY
+        -Wno-WIDTHCONCAT
+        -Wno-ENUMVALUE
+        -Wno-SELRANGE -Wno-LATCH #These might be caused from not connecting everything properly
+        -Wno-IMPLICITSTATIC
+        -Wno-IEEEMAYDEPRECATE
+        #+define+COREV_ASSERT_OFF       #Fixes UVM error with CV32E40X (Needed when not using -DVPROC_SVA)
+        # ${TRACE_FLAG}
+        --assert -DVPROC_SVA
+        -GMEM_W=${MEM_W} -GVMEM_W=${VMEM_W} -GMEM_PORTS=${MEM_PORTS}
+        ${VICUNA_MODE}
+        ${READ_MODE}
+        ${XIF_FLAG}
+        ${RISCV_F}
+        ${RISCV_ZFH}
+        ${RISCV_ZVE32X}
+        ${RISCV_ZVE32F}
+        ${RISCV_ZVFH}
+        -CFLAGS "-std=gnu++14 -O2")
 
-elseif( ${SCALAR_CORE} STREQUAL "cv32a60x" ) #TODO: Verify/Test support for floating point vector systems with this core.  Currently, only Zve32x tested.
+elseif(${SCALAR_CORE} STREQUAL "cv32a60x") #TODO: Verify/Test support for floating point vector systems with this core.  Currently, only Zve32x tested.
     verilate(verilated_model SOURCES ${DESIGN_SRC_OBI} ${CV32A60X_SOURCE} ${VICUNA_SRCS} ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/vproc_top.sv
-                INCLUDE_DIRS ${INCLUDE_OBI} ${CV32A60X_INCLUDE} ${VICUNA_INCS} ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE} ${CMAKE_CURRENT_SOURCE_DIR}
-                TOP_MODULE vproc_top 
-                PREFIX Vvproc_top
-                ${TRACE}                                    
-                VERILATOR_ARGS -cc -exe ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/verilator_main.cpp --unroll-count 1024
-                                -Wno-WIDTH -Wno-PINMISSING -Wno-UNOPTFLAT   
-                                -Wno-UNSIGNED -Wno-IMPLICIT -Wno-LITENDIAN -Wno-CASEINCOMPLETE
-                                -Wno-SYMRSVDWORD -Wno-BLKANDNBLK -Wno-BLKSEQ -Wno-SYNCASYNCNET
-                                -Wno-COMBDLY 
-                                -Wno-WIDTHCONCAT
-                                -Wno-ENUMVALUE 
-                                -Wno-SELRANGE -Wno-LATCH #These might be caused from not connecting everything properly
-                                -Wno-IMPLICITSTATIC      
-                                -Wno-IEEEMAYDEPRECATE
-                                #+define+COREV_ASSERT_OFF       #Fixes UVM error with CV32E40X (Needed when not using -DVPROC_SVA)
-                                #--clk clk_i
-                                ${TRACE_FLAG} 
-                                --assert -DVPROC_SVA
-                                -GMEM_W=${MEM_W} -GVMEM_W=${VMEM_W} -GMEM_PORTS=${MEM_PORTS}
-                                ${VICUNA_MODE}
-                                ${READ_MODE}
-                                ${XIF_FLAG}
-                                ${RISCV_F}
-                                ${RISCV_ZFH}
-                                ${RISCV_ZVE32X}
-                                ${RISCV_ZVE32F}
-                                ${RISCV_ZVFH}
-                                ${COMMIT_AND_ISSUE}
-                                -CFLAGS "-std=gnu++14 -O2")
+        INCLUDE_DIRS ${INCLUDE_OBI} ${CV32A60X_INCLUDE} ${VICUNA_INCS} ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE} ${CMAKE_CURRENT_SOURCE_DIR}
+        TOP_MODULE vproc_top
+        PREFIX Vvproc_top
+        # ${TRACE}
+        VERILATOR_ARGS -cc -exe ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/verilator_main.cpp --unroll-count 1024
+        -Wno-WIDTH -Wno-PINMISSING -Wno-UNOPTFLAT
+        -Wno-UNSIGNED -Wno-IMPLICIT -Wno-LITENDIAN -Wno-CASEINCOMPLETE
+        -Wno-SYMRSVDWORD -Wno-BLKANDNBLK -Wno-BLKSEQ -Wno-SYNCASYNCNET
+        -Wno-COMBDLY
+        -Wno-WIDTHCONCAT
+        -Wno-ENUMVALUE
+        -Wno-SELRANGE -Wno-LATCH #These might be caused from not connecting everything properly
+        -Wno-IMPLICITSTATIC
+        -Wno-IEEEMAYDEPRECATE
+        #+define+COREV_ASSERT_OFF       #Fixes UVM error with CV32E40X (Needed when not using -DVPROC_SVA)
+        #--clk clk_i
+        # ${TRACE_FLAG}
+        --assert -DVPROC_SVA
+        -GMEM_W=${MEM_W} -GVMEM_W=${VMEM_W} -GMEM_PORTS=${MEM_PORTS}
+        ${VICUNA_MODE}
+        ${READ_MODE}
+        ${XIF_FLAG}
+        ${RISCV_F}
+        ${RISCV_ZFH}
+        ${RISCV_ZVE32X}
+        ${RISCV_ZVE32F}
+        ${RISCV_ZVFH}
+        ${COMMIT_AND_ISSUE}
+        -CFLAGS "-std=gnu++14 -O2")
 
 
 
-        # Compile verilator model as a shared library for linking with gem5.  This prevents a rebuild of gem5 every time the model changes.  Currently only supported for CVA6
-        add_library(verilated_model_lib SHARED)
+    # Compile verilator model as a shared library for linking with gem5.  This prevents a rebuild of gem5 every time the model changes.  Currently only supported for CVA6
+    add_library(verilated_model_lib SHARED)
 
-        file(GLOB VERILATOR_FILES "${CMAKE_BINARY_DIR}/CMakeFiles/verilated_model.dir/Vvproc_top.dir/*.cpp" )
-        target_sources(verilated_model_lib PUBLIC
+    file(GLOB VERILATOR_FILES "${CMAKE_BINARY_DIR}/CMakeFiles/verilated_model.dir/Vvproc_top.dir/*.cpp")
+    target_sources(verilated_model_lib PUBLIC
         ${VERILATOR_ROOT}/include/verilated.cpp
         ${VERILATOR_ROOT}/include/verilated_vcd_c.cpp
         ${VERILATOR_ROOT}/include/verilated_threads.cpp
         ${VERILATOR_FILES}
-        )
+    )
 
-        target_include_directories(verilated_model_lib PUBLIC
+    target_include_directories(verilated_model_lib PUBLIC
         ${CMAKE_BINARY_DIR}/CMakeFiles/verilated_model.dir/Vvproc_top.dir/
         ${VERILATOR_ROOT}/include/gtkwave/
         ${VERILATOR_ROOT}/include/vltstd/
         ${VERILATOR_ROOT}/include/
-        )
+    )
 
 
 else()

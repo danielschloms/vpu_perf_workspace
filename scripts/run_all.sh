@@ -171,17 +171,25 @@ veri_timeout() {
 }
 
 run_veri() {
-    local core="$1" tgt="$2" model="${MODEL_BIN[$core]}" dir progfile out exitcode
+    local core="$1" tgt="$2" model="${MODEL_BIN[$core]}" dir progfile out exitcode scratch
     if [[ -f "${EMBENCH_DIR}/prog_${tgt}_verilator.txt" ]]; then dir="${EMBENCH_DIR}"; else dir="${TINY_DIR}"; fi
     progfile="${dir}/prog_${tgt}_verilator.txt"
     out="${RESULT_DIR}/${core}_${tgt}.log"
+    # Run the model from a scratch dir: the cv32a60x RTL unconditionally
+    # $fopens `trace_hart_<id>.dasm` into the process CWD
+    # (rtl/vicuna2/rtl/cv32a60x/core/cva6_pipeline.sv). Keeping the model's
+    # CWD in scratch/result-dir stops that file polluting the build dir.
+    scratch="${RESULT_DIR}/_scratch_${core}_${tgt}"
+    mkdir -p "${scratch}"
     (
-        cd "${dir}"
+        cd "${scratch}"
         timeout "$(veri_timeout "${tgt}")" \
             "${model}" "${progfile}" ${VERI_ARGS} "${tgt}" "${VREG_W}" 0 \
             > "${out}" 2>&1
     )
     exitcode=$?
+    rm -f "${scratch}"/trace_hart_*.dasm 2>/dev/null
+    rm -rf "${scratch}"
     if [[ ${exitcode} -eq 0 ]]; then local verdict=PASS; else verdict=FAIL; fi
     echo "${core},${tgt},${verdict},exit=${exitcode}" >> "${veri_csv}"
 }

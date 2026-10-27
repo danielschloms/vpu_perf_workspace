@@ -45,6 +45,12 @@ SECTIONS
 
   /* ================ RAM ================ */
 
+  /* Anchor the location counter to the start of RAM (see verilator_vicuna2/link.ld
+     for the rationale).  Keeps __data_start / __sdata_start / __global_pointer$
+     in RAM so gp-relative data addressing is used even when the preceding RAM
+     output sections are empty. */
+  . = ORIGIN(RAM);
+
   .init_array : {
     PROVIDE_HIDDEN (__init_array_start = .);
     KEEP (*(.init_array .init_array.*))

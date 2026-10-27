@@ -10,6 +10,7 @@
 #include "verilator_support_cv32a60x.h"
 #include "Vvproc_top_cva6_pipeline__Cz2.h"
 #include <cstdint>
+#include <deque>
 #include <fstream>
 #include <iomanip>
 
@@ -30,6 +31,12 @@ int n_vector_instr = 0;
 int sum_vec_lengths = 0;
 int sum_vec_lengths_bytes = 0;
 float sum_vec_percentage = 0.0;
+
+// Sliding window of the most recently retired instruction PCs.  Used to detect
+// and suppress the ~1-cycle `pc_commit` transients that the commit stage emits
+// at branch/return resolution boundaries (see update_instructions below).
+static std::deque<uint32_t> recent_instr_pcs;
+static const unsigned RECENT_INSTR_PCS = 6;
 
 // --- Private function declarations
 
@@ -362,13 +369,40 @@ void update_cycles()
 void update_instructions(Vvproc_top *top)
 {
   current_commit_pc = top->vproc_top->i_cva6_pipeline->pc_commit;
+  // A genuine retire of a register-writing instruction asserts we_gpr_commit_id.
+  uint8_t gpr_we = top->vproc_top->i_cva6_pipeline->we_gpr_commit_id & 0x1;
   // current_WB_PC = top->vproc_top->core->instruction_wb_pc;
   if (current_commit_pc != last_commit_pc)
   {
-    n_instr++;
-    if (inst_trace)
+    // `pc_commit` is the combinational head-of-queue PC (commit_instr_i[0].pc),
+    // so at branch/return resolution it can momentarily show a wrong-path value
+    // (a PC that was already retired, with no GPR write occurring) for ~1 cycle.
+    // A genuine retire either writes a GPR (gpr_we set) or advances to a PC that
+    // is not a repeat of the immediately preceding retired PCs.  Suppress the
+    // transient so the trace/instruction count only reflects real retires.
+    bool recent_repeat = false;
+    for (uint32_t pc : recent_instr_pcs)
     {
-      print_trace();
+      if (pc == current_commit_pc)
+      {
+        recent_repeat = true;
+        break;
+      }
+    }
+    bool transient = (!gpr_we) && recent_repeat;
+
+    if (!transient)
+    {
+      n_instr++;
+      recent_instr_pcs.push_front(current_commit_pc);
+      if (recent_instr_pcs.size() > RECENT_INSTR_PCS)
+      {
+        recent_instr_pcs.pop_back();
+      }
+      if (inst_trace)
+      {
+        print_trace();
+      }
     }
   }
   last_commit_pc = current_commit_pc;

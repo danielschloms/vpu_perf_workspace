@@ -202,6 +202,8 @@ inline int current_WB_PC = 0;
 inline int last_WB_PC = 0;
 inline int instr = 0;
 void update_instructions(Vvproc_top *top);
+void enable_inst_trace(const char *path);
+void print_trace();
 /*
  *   Total Vector Instructions executed update
  * ARGS:

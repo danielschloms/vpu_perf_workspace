@@ -34,10 +34,12 @@ group_batch_fun_mapping = {
     "V_XRESULT": "one()",
 }
 
-ETISS_PERFSIM_DIR = pathlib.Path(__file__).parent.parent / "etiss_perfsim"
+# The perf-sim workspace lives under <repo>/etiss-pe/etiss-perf-sim in this repo
+# (the original repo used <repo>/etiss_perfsim directly).
+ETISS_PERFSIM_DIR = pathlib.Path(__file__).parent.parent / "etiss-pe" / "etiss-perf-sim"
 VARIANTS_DIR = (
     ETISS_PERFSIM_DIR
-    / "etiss-perf-sim/etiss_plugins/SoftwareEvalLib/libs/backends/variants"
+    / "etiss_plugins/SoftwareEvalLib/libs/backends/variants"
 )
 VLENS = [64, 128, 256, 512, 1024]
 

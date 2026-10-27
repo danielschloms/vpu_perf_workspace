@@ -54,6 +54,15 @@ SECTIONS
 
   /* ================ RAM ================ */
 
+  /* Anchor the location counter to the start of RAM.  The RAM output sections
+     (init_array, eh_frame, ...) can be empty for minimal programs, in which case
+     GNU ld leaves the counter at the ROM end; that would make __data_start /
+     __sdata_start / __global_pointer$ resolve to a ROM address and force the
+     linker to relax gp-relative accesses into (absolute) lui+offset sequences.
+     Resetting to ORIGIN(RAM) keeps the data base symbols in RAM so the small-
+     data (gp-relative) addressing is used consistently. */
+  . = ORIGIN(RAM);
+
   .init_array : {
     PROVIDE_HIDDEN (__init_array_start = .);
     KEEP (*(.init_array .init_array.*))

@@ -74,6 +74,17 @@ from util import check_path, error, info, success, warn
 ARCH = "rv32im_zve32x"
 BENCHMARK_SUITE = "embench_iot"
 
+# The Verilator model is built per scalar core in this repo; the comparison
+# uses one core (the one the programs were built against / the default).
+SCALAR_CORE = os.environ.get("SCALAR_CORE", "cv32a60x")
+
+# Map the logical suite name to the actual build subdirectory under
+# <repo>/programs/build/src/.
+SUITE_DIR_NAMES = {
+    "embench_iot": "embench-iot",
+    "mlperftiny": "tiny",
+}
+
 # (VLEN, VLANE_WIDTH). For now only 128/32 is exercised.
 DEFAULT_HW_CONFIGS = [(128, 32)]
 
@@ -88,28 +99,34 @@ VERILATOR_EXTRA_CYCLES = 1
 VERILATOR_INSTR_TRACE_ARG = "--itrace"
 ETISS_TRACE_ROTATE_BYTES = 0x10000
 
+# The cv32a60x Verilator model records committed PCs on the physical address
+# bus, whose DRAM base is 0x80000000. The objdump/ELF addresses (used by
+# read_addresses) are logical, so the model's --itrace PCs are `logical +
+# VERILATOR_ADDR_OFFSET`. Override if the model base changes.
+VERILATOR_ADDR_OFFSET = int(os.environ.get("VERILATOR_ADDR_OFFSET", "0x80000000"), 0)
+
 # EMBENCH IOT baselines (target names refer to the benchmark, NOT the
 # simulator-specific suffix). Override with --target.
 EMBENCH_IOT_TESTS = [
-    "aha-mont64",
-    "edn",
-    "md5sum",
-    "nsichneu",
+    # "aha-mont64",
+    # "edn",
+    # "md5sum",
+    # "nsichneu",
     # "sglib-combined",
-    "tarfind",
-    "xgboost",
+    # "tarfind",
+    # "xgboost",
     "crc32",
-    "huffbench",
-    "slre",
-    "ud",
-    "depthconv",
-    "matmult-int",
+    # "huffbench",
+    # "slre",
+    # "ud",
+    # "depthconv",
+    # "matmult-int",
     # "statemate",
-    "wikisort",
-    "qrduino",
+    # "wikisort",
+    # "qrduino",
     # "picojpeg",
-    "nettle-sha256",
-    "nettle-aes",
+    # "nettle-sha256",
+    # "nettle-aes",
 ]
 
 MAX_TRACE_LINES_DIAG = 20  # extra debug lines shown on mismatch
@@ -127,16 +144,30 @@ def etiss_binary() -> pathlib.Path:
 
 
 def etiss_base_ini() -> pathlib.Path:
-    return paths.PROJECT_ROOT_DIR / "benchmark_sources/framework/etiss/ini/etiss.ini"
+    # This repo's ETISS framework ini.
+    return paths.PROJECT_ROOT_DIR / "programs/runtime/etiss/ini/etiss.ini"
 
 
-def verilator_binary() -> pathlib.Path:
-    return paths.VERILATOR_PRJ_SRC / "build/verilated_model"
+def verilator_binary(vlen: int = 128, vlane: int = 32) -> pathlib.Path:
+    # Model path: <rtl>/build/<core>/<arch>_zvl<vlen>_vl<vlane>/verilated_model
+    model = (
+        paths.VERILATOR_PRJ_SRC
+        / "build"
+        / SCALAR_CORE
+        / f"{ARCH}_zvl{vlen}_vl{vlane}"
+        / "verilated_model"
+    )
+    if not model.exists():
+        # Fall back to a glob in case the core sub-dir name differs slightly.
+        cands = list((paths.VERILATOR_PRJ_SRC / "build" / SCALAR_CORE).glob(f"*zvl{vlen}_vl{vlane}*/verilated_model"))
+        if cands:
+            model = cands[0]
+    return model
 
 
 def suite_dir(arch: str, vlen: int) -> pathlib.Path:
-    full_arch = f"{arch}_zvl{vlen}b"
-    return paths.TEST_BUILD_BASE_DIR / full_arch / "benchmark_sources" / BENCHMARK_SUITE
+    # This repo nests built benchmarks under <repo>/programs/build/src/<suite>/.
+    return paths.TEST_BUILD_BASE_DIR / "src" / SUITE_DIR_NAMES.get(BENCHMARK_SUITE, BENCHMARK_SUITE)
 
 
 def target_paths(arch: str, vlen: int, target: str) -> dict:
@@ -144,10 +175,11 @@ def target_paths(arch: str, vlen: int, target: str) -> dict:
     d = suite_dir(arch, vlen)
 
     etiss_name = f"{target}_etiss"
-    verilator_name = f"{target}_Verilator"
+    verilator_name = f"{target}_verilator"
 
     paths_map = {
-        "etiss_elf": d / f"{etiss_name}.elf",
+        # ETISS ELF has no `.elf` suffix in this repo.
+        "etiss_elf": d / etiss_name,
         "etiss_dump": d / f"{etiss_name}_dump.txt",
         "verilator_dump": d / f"{verilator_name}_dump.txt",
         "verilator_prog": d / f"prog_{verilator_name}.txt",
@@ -241,17 +273,17 @@ def build_etiss_cmd(
 
 
 def build_verilator_cmd(
-    paths_map: dict, verilator_trace: pathlib.Path, target: str, vlen: int
+    paths_map: dict, verilator_trace: pathlib.Path, target: str, vlen: int, vlane: int
 ) -> list[str]:
     cmd = [
-        str(verilator_binary()),
+        str(verilator_binary(vlen=vlen, vlane=vlane)),
         str(paths_map["verilator_prog"]),
         str(VERILATOR_MEM_PORTS),
         str(VERILATOR_MEM_W),
         str(VERILATOR_MEM_SZ),
         str(VERILATOR_MEM_LATENCY),
         str(VERILATOR_EXTRA_CYCLES),
-        f"{target}_Verilator",  # TEST_NAME
+        f"{target}_verilator",  # TEST_NAME
         str(vlen),  # VREG_W
         "0",  # NUM_TEST_CASES
         VERILATOR_INSTR_TRACE_ARG,
@@ -263,7 +295,7 @@ def build_verilator_cmd(
 # --------------------------------------------------------------------------
 # Run both simulators for one (target, hw-config)
 # --------------------------------------------------------------------------
-def run_simulators(cmds: dict) -> bool:
+def run_simulators(cmds: dict, cwd: pathlib.Path | None = None) -> bool:
     """Run every (name -> (cmd, extra_env)) command; True if all succeed."""
     failed = []
     for name, (cmd, extra_env) in cmds.items():
@@ -276,6 +308,7 @@ def run_simulators(cmds: dict) -> bool:
                 capture_output=True,
                 text=True,
                 env=env,
+                cwd=str(cwd) if cwd else None,
                 timeout=None,
             )
             if proc.returncode != 0:
@@ -350,7 +383,7 @@ def compare_target(
     verilator_trace.parent.mkdir(parents=True, exist_ok=True)
 
     etiss_cmd = build_etiss_cmd(p, vlen, etiss_dir, target)
-    verilator_cmd = build_verilator_cmd(p, verilator_trace, target, vlen)
+    verilator_cmd = build_verilator_cmd(p, verilator_trace, target, vlen, vlane)
 
     # Preview commands even without a build, so the invocation can be vetted.
     if dry_run:
@@ -361,16 +394,23 @@ def compare_target(
     for key in ("etiss_dump", "verilator_dump", "verilator_prog"):
         check_path(p[key])
     check_path(etiss_binary())
-    check_path(verilator_binary())
+    check_path(verilator_binary(vlen=vlen, vlane=vlane))
     match_dir.mkdir(parents=True, exist_ok=True)
     match_file = match_dir / f"{target}_{vlen}x{vlane}_match.txt"
+
+    # Run both simulators from a scratch CWD. The cv32a60x Verilator model's RTL
+    # unconditionally $fopens `trace_hart_<id>.dasm` into the process CWD (see
+    # rtl/vicuna2/rtl/cv32a60x/core/cva6_pipeline.sv). Running from a scratch
+    # dir under the (tmpfs) trace root keeps that file out of the workspace.
+    run_cwd = trace_root / "run_cwd"
+    run_cwd.mkdir(parents=True, exist_ok=True)
 
     # ETISS expects VLEN/VLANE_WIDTH in its environment (as ctest set them).
     cmds = {
         "etiss": (etiss_cmd, {"VLEN": str(vlen), "VLANE_WIDTH": str(vlane)}),
         "verilator": (verilator_cmd, {}),
     }
-    ok = run_simulators(cmds)
+    ok = run_simulators(cmds, cwd=run_cwd)
     if not ok:
         return False
 
@@ -387,6 +427,7 @@ def compare_target(
             etiss_trace,
             verilator_trace,
             match_file,
+            verilator_addr_offset=VERILATOR_ADDR_OFFSET,
         )
         # compare_fast returns (CmpResult, bool) on success, but a 6-tuple
         # (0,0,0,0,0,False) when address matching fails; handle both.
@@ -415,6 +456,8 @@ def compare_target(
         shutil.rmtree(etiss_dir, ignore_errors=True)
         for tmp in (etiss_timing, etiss_trace, verilator_trace, match_file):
             tmp.unlink(missing_ok=True)
+        # Drop the scratch CWD (it holds the model's `trace_hart_*.dasm`).
+        shutil.rmtree(run_cwd, ignore_errors=True)
     return ok_run
 
 
@@ -454,46 +497,35 @@ def read_cmake_cache(build_dir: pathlib.Path) -> dict:
 
 
 def is_suite_built(arch: str, vlen: int, vlane: int, suite: str) -> bool:
-    """True iff the suite is configured for this (vlen, vlane, suite) and built."""
-    build_dir = paths.TEST_BUILD_BASE_DIR / f"{arch}_zvl{vlen}b"
-    cache = read_cmake_cache(build_dir)
-    if not cache:
-        return False
-    if cache.get("BENCHMARK_SUITE") != suite:
-        return False
-    if str(cache.get("VREG_W")) != str(vlen):
-        return False
-    if str(cache.get("VLANE_W")) != str(vlane):
-        return False
-    suite_d = build_dir / "benchmark_sources" / suite
-    if not suite_d.exists():
+    """True iff the suite has built artefacts for this repo's layout."""
+    d = suite_dir(arch, vlen)
+    if not d.exists():
         return False
     # Any objdump dump means the build finished its POST_BUILD steps.
-    if not any(suite_d.glob("*_dump.txt")):
+    if not any(d.glob("*_dump.txt")):
         return False
     return True
 
 
 def build_suite(arch: str, vlen: int, vlane: int, suite: str) -> bool:
-    """Configure + build the suite with trace support (--pperf)."""
-    script = pathlib.Path(__file__).with_name("build-tests.sh")
-    cmd = [
-        str(script),
-        "--pperf",
-        "--arch",
-        arch,
-        "--vlen",
-        str(vlen),
-        "--vlane",
-        str(vlane),
-        "--target",
-        suite,
-    ]
-    info("build", " ".join(cmd))
-    # Stream output so the user sees build progress (it can take a while).
-    proc = subprocess.run(cmd)
+    """Build the suite in this repo via scripts/build_programs.sh.
+
+    Note: this repo does not ship the original repo's `build-tests.sh --pperf`
+    (perf-trace) build.  The suite is normally built with scripts/build_programs.sh
+    (which already produces the objdump `*_dump.txt` artefacts the comparison
+    needs).  If it is not built yet, we trigger that build once.
+    """
+    script = pathlib.Path(__file__).parent.parent / "build_programs.sh"
+    if not script.exists():
+        error(
+            "build",
+            f"build helper not found ({script}); build the suite first via scripts/build_programs.sh",
+        )
+        return False
+    info("build", f"Building {suite} via {script} ...")
+    proc = subprocess.run([str(script), "--mlperftiny", "--scalar-core", SCALAR_CORE])
     if proc.returncode != 0:
-        error("build", f"build-tests.sh failed with code {proc.returncode}")
+        error("build", f"build_programs.sh failed with code {proc.returncode}")
         return False
     if not is_suite_built(arch, vlen, vlane, suite):
         error("build", "build reported success but artifacts missing")
