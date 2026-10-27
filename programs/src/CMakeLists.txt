@@ -13,5 +13,5 @@ add_subdirectory(embench-iot)
 # Enabled with -DEMBENCH_MLPERFTINY=ON. Its CMakeLists currently targets the old
 # framework build and must be adapted before it can be built by default.
 if(EMBENCH_MLPERFTINY)
-    add_subdirectory(MLPerfTiny)
+    add_subdirectory(tiny)
 endif()

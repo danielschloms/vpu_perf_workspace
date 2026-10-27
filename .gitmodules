@@ -16,3 +16,9 @@
 [submodule "rtl/vicuna2/rtl/vicuna2_core"]
 	path = rtl/vicuna2/rtl/vicuna2_core
 	url = https://github.com/vproc/vicuna2_core.git
+[submodule "programs/src/tiny/tiny"]
+	path = programs/src/tiny/tiny
+	url = git@github.com:mlcommons/tiny.git
+[submodule "programs/src/tiny/tflite-micro"]
+	path = programs/src/tiny/tflite-micro
+	url = https://github.com/tensorflow/tflite-micro.git
