@@ -23,14 +23,20 @@ set(TINY_MARCH "${RISCV_ARCH}_zvl${VREG_W}b")
 set(TINY_MABI "ilp32")
 set(TINY_OPT "-O3")
 
-# ctest timeout (seconds) for the (very slow) KWS inference under the scalar
+# ctest timeout (seconds) for the (very slow) int8 inferences under the scalar
 # cycle-accurate Verilator model.
 set(TINY_KWS_TIMEOUT "1800" CACHE STRING
     "Timeout (seconds) for the MLPerf Tiny KWS Verilator test.")
+set(TINY_IC_TIMEOUT "1800" CACHE STRING
+    "Timeout (seconds) for the MLPerf Tiny image-classification Verilator test.")
+set(TINY_AD_TIMEOUT "1800" CACHE STRING
+    "Timeout (seconds) for the MLPerf Tiny anomaly-detection Verilator test.")
 
 # mlcommons/tiny submodule (pretrained models + reference settings).  Untouched.
 set(TINY_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/tiny")
 set(KWS_DIR "${TINY_ROOT}/benchmark/reference_submissions/keyword_spotting")
+set(IC_DIR  "${TINY_ROOT}/benchmark/reference_submissions/image_classification")
+set(AD_DIR  "${TINY_ROOT}/benchmark/reference_submissions/anomaly_detection")
 if(NOT EXISTS "${KWS_DIR}/kws/kws_model_data.cc")
     message(FATAL_ERROR "mlcommons/tiny submodule not populated at ${TINY_ROOT}")
 endif()
@@ -64,13 +70,15 @@ set(TFLM_INC
     "${TFLM_DL}/eyalroz_printf/src"
 )
 
-# ---- add one KWS harness target for one simulator -------------------------
+# ---- add one MLPerf Tiny harness target for one simulator -----------------
 #   harness/main_<sim>.cpp      entry point (per-simulator)
 #   harness/boardsupport_<sim>  newlib/device stubs (per-simulator)
-#   harness/kws_runner.cpp      shared tflite-micro KWS inference
-# The runner picks its diagnostic sink via KWS_UART: Verilator uses the
+#   harness/<bm>_runner.cpp     shared tflite-micro inference (<bm> = bm)
+#   model_srcs                  model/input .cc files (from the tiny submodule)
+#   runner_sym                  C symbol returning int (0 = pass): run_kws / ...
+# The runner picks its diagnostic sink via TINY_UART: Verilator uses the
 # runtime's limited uart_printf, ETISS uses hosted stdio (printf).
-function(add_tiny_kws target sim)
+function(add_tiny_bench target sim bm runner_src runner_sym bench_incs model_srcs timeout)
     if(sim STREQUAL "verilator")
         set(main_src "${CMAKE_CURRENT_SOURCE_DIR}/harness/main_vicuna2.cpp")
         set(bs_src   "${CMAKE_CURRENT_SOURCE_DIR}/harness/boardsupport_vicuna2.c")
@@ -78,21 +86,23 @@ function(add_tiny_kws target sim)
         set(main_src "${CMAKE_CURRENT_SOURCE_DIR}/harness/main_etiss.cpp")
         set(bs_src   "${CMAKE_CURRENT_SOURCE_DIR}/harness/boardsupport_etiss.cc")
     else()
-        message(FATAL_ERROR "add_tiny_kws: unsupported sim '${sim}'")
+        message(FATAL_ERROR "add_tiny_bench: unsupported sim '${sim}'")
     endif()
 
     add_executable(${target}
         "${main_src}"
         "${bs_src}"
-        "${CMAKE_CURRENT_SOURCE_DIR}/harness/kws_runner.cpp"
-        "${KWS_DIR}/kws/kws_model_data.cc"
-        "${KWS_DIR}/kws/kws_model_settings.cc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/harness/${runner_src}"
+        ${model_srcs}
     )
 
     add_dependencies(${target} tflm_microlite)
 
+    # The harness selects the inference entry point at build time.
+    target_compile_definitions(${target} PRIVATE "RUNNER_FN=${runner_sym}")
+
     target_include_directories(${target} PRIVATE
-        "${KWS_DIR}"               # kws/kws_model_*.h
+        ${bench_incs}
         ${TFLM_INC}
     )
     if(sim STREQUAL "verilator")
@@ -115,6 +125,11 @@ function(add_tiny_kws target sim)
         "-g"
         "-Wall"
         "-Wno-array-bounds"
+        # The mlcommons/tiny reference headers (e.g. ic/ic_inputs.h) use uint8_t
+        # without including <cstdint>/<stdint.h>.  Inject stdint.h on every
+        # translation unit so those third-party headers compile as-is.
+        "-include"
+        "stdint.h"
     )
     # C++-only flags (the harness pulls in tflite-micro, which is C++).
     target_compile_options(${target} PRIVATE
@@ -125,7 +140,7 @@ function(add_tiny_kws target sim)
     )
 
     if(sim STREQUAL "verilator")
-        target_compile_definitions(${target} PRIVATE KWS_UART)
+        target_compile_definitions(${target} PRIVATE TINY_UART)
 
         target_link_options(${target} PRIVATE
             "-nostartfiles"
@@ -174,13 +189,36 @@ function(add_tiny_kws target sim)
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     endif()
 
-    # The int8 DS-CNN KWS inference is compute-heavy, so a full forward pass is
-    # far slower than the embench kernels under the scalar cycle-accurate
-    # Verilator model.  Give it a generous, configurable window.
-    set_tests_properties(${target} PROPERTIES TIMEOUT ${TINY_KWS_TIMEOUT})
+    # The int8 inferences are compute-heavy, so a full forward pass is far
+    # slower than the embench kernels under the scalar cycle-accurate Verilator
+    # model.  Give each benchmark a generous, configurable window.
+    set_tests_properties(${target} PROPERTIES TIMEOUT ${timeout})
 
-    message(STATUS "mlperftiny: added ${target}")
+    message(STATUS "mlperftiny: added ${target} (${bm}, ${sim})")
 endfunction()
 
-add_tiny_kws("kws_verilator" "verilator")
-add_tiny_kws("kws_etiss" "etiss")
+# ---- Keyword Spotting (DS-CNN int8) ----------------------------------------
+set(KWS_MODEL
+    "${KWS_DIR}/kws/kws_model_data.cc"
+    "${KWS_DIR}/kws/kws_model_settings.cc")
+add_tiny_bench("kws_verilator" "verilator" "kws" "kws_runner.cpp" "run_kws"
+    "${KWS_DIR}" "${KWS_MODEL}" "${TINY_KWS_TIMEOUT}")
+add_tiny_bench("kws_etiss" "etiss" "kws" "kws_runner.cpp" "run_kws"
+    "${KWS_DIR}" "${KWS_MODEL}" "${TINY_KWS_TIMEOUT}")
+
+# ---- Image Classification (ResNet-8 int8) ----------------------------------
+set(IC_MODEL
+    "${IC_DIR}/ic/ic_model_quant_data.cc"
+    "${IC_DIR}/ic/ic_model_settings.cc"
+    "${IC_DIR}/ic/ic_inputs.cc")
+add_tiny_bench("ic_verilator" "verilator" "ic" "ic_runner.cpp" "run_ic"
+    "${IC_DIR}" "${IC_MODEL}" "${TINY_IC_TIMEOUT}")
+add_tiny_bench("ic_etiss" "etiss" "ic" "ic_runner.cpp" "run_ic"
+    "${IC_DIR}" "${IC_MODEL}" "${TINY_IC_TIMEOUT}")
+
+# ---- Anomaly Detection (int8 autoencoder) ----------------------------------
+set(AD_MODEL "${AD_DIR}/model.cc")
+add_tiny_bench("ad_verilator" "verilator" "ad" "ad_runner.cpp" "run_ad"
+    "${AD_DIR}" "${AD_MODEL}" "${TINY_AD_TIMEOUT}")
+add_tiny_bench("ad_etiss" "etiss" "ad" "ad_runner.cpp" "run_ad"
+    "${AD_DIR}" "${AD_MODEL}" "${TINY_AD_TIMEOUT}")

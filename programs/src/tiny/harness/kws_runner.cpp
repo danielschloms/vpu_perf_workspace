@@ -21,7 +21,7 @@
 // The runner prints diagnostics; the sink differs per simulator.
 //   * Verilator (Vicuna2): the runtime's limited uart_printf (no %zu, no floats)
 //   * ETISS:               hosted stdio (printf) via semihosting
-#if defined(KWS_UART)
+#if defined(TINY_UART)
 #include "uart.hpp"                          // Vicuna2 runtime uart_printf
 #define KWS_PRINTF uart_printf
 #else
