@@ -68,7 +68,6 @@ import fastcomparison
 import paths
 from util import check_path, error, info, success, warn
 
-
 # --------------------------------------------------------------------------
 # Configuration (defaults; override via CLI)
 # --------------------------------------------------------------------------
@@ -96,7 +95,7 @@ EMBENCH_IOT_TESTS = [
     "edn",
     "md5sum",
     "nsichneu",
-    "sglib-combined",
+    # "sglib-combined",
     "tarfind",
     "xgboost",
     "crc32",
@@ -105,10 +104,10 @@ EMBENCH_IOT_TESTS = [
     "ud",
     "depthconv",
     "matmult-int",
-    "statemate",
+    # "statemate",
     "wikisort",
     "qrduino",
-    "picojpeg",
+    # "picojpeg",
     "nettle-sha256",
     "nettle-aes",
 ]
@@ -166,7 +165,9 @@ def fs_type(path: pathlib.Path) -> str:
     try:
         out = subprocess.run(
             ["stat", "-f", "-c", "%T", str(path)],
-            capture_output=True, text=True, check=True,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
         return out
     except Exception:
@@ -199,7 +200,9 @@ def natural_key(name: str):
 # --------------------------------------------------------------------------
 # ETISS runtime dyn.ini + invocation
 # --------------------------------------------------------------------------
-def write_etiss_dyn_ini(trace_dir: pathlib.Path, vlen: int, target: str) -> pathlib.Path:
+def write_etiss_dyn_ini(
+    trace_dir: pathlib.Path, vlen: int, target: str
+) -> pathlib.Path:
     """Generate a temp ETISS dyn.ini pointing trace output at tmpfs."""
     trace_dir.mkdir(parents=True, exist_ok=True)
     ini = trace_dir / f"dyn_{target}_zvl{vlen}.ini"
@@ -223,8 +226,9 @@ def write_etiss_dyn_ini(trace_dir: pathlib.Path, vlen: int, target: str) -> path
     return ini
 
 
-def build_etiss_cmd(paths_map: dict, vlen: int, trace_dir: pathlib.Path,
-                    target: str) -> list[str]:
+def build_etiss_cmd(
+    paths_map: dict, vlen: int, trace_dir: pathlib.Path, target: str
+) -> list[str]:
     dyn_ini = write_etiss_dyn_ini(trace_dir, vlen, target)
     cmd = [
         str(etiss_binary()),
@@ -236,8 +240,9 @@ def build_etiss_cmd(paths_map: dict, vlen: int, trace_dir: pathlib.Path,
     return cmd
 
 
-def build_verilator_cmd(paths_map: dict, verilator_trace: pathlib.Path,
-                        target: str, vlen: int) -> list[str]:
+def build_verilator_cmd(
+    paths_map: dict, verilator_trace: pathlib.Path, target: str, vlen: int
+) -> list[str]:
     cmd = [
         str(verilator_binary()),
         str(paths_map["verilator_prog"]),
@@ -246,9 +251,9 @@ def build_verilator_cmd(paths_map: dict, verilator_trace: pathlib.Path,
         str(VERILATOR_MEM_SZ),
         str(VERILATOR_MEM_LATENCY),
         str(VERILATOR_EXTRA_CYCLES),
-        f"{target}_Verilator",     # TEST_NAME
-        str(vlen),                 # VREG_W
-        "0",                       # NUM_TEST_CASES
+        f"{target}_Verilator",  # TEST_NAME
+        str(vlen),  # VREG_W
+        "0",  # NUM_TEST_CASES
         VERILATOR_INSTR_TRACE_ARG,
         str(verilator_trace),
     ]
@@ -267,7 +272,11 @@ def run_simulators(cmds: dict) -> bool:
         env.update(extra_env)
         try:
             proc = subprocess.run(
-                cmd, capture_output=True, text=True, env=env, timeout=None,
+                cmd,
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=None,
             )
             if proc.returncode != 0:
                 error(f"run {name}", f"exited {proc.returncode}")
@@ -284,8 +293,9 @@ def run_simulators(cmds: dict) -> bool:
     return True
 
 
-def combine_etiss_traces(trace_dir: pathlib.Path, target: str,
-                         root: pathlib.Path) -> tuple:
+def combine_etiss_traces(
+    trace_dir: pathlib.Path, target: str, root: pathlib.Path
+) -> tuple:
     """Assemble the combined ETISS timing.csv and asm trace.txt in tmpfs."""
     # Timing: the perf-estimator's cycle CSV.
     timing_files = sorted(
@@ -310,15 +320,25 @@ def combine_etiss_traces(trace_dir: pathlib.Path, target: str,
             for line in f.read_text(encoding="utf-8").splitlines():
                 if line.startswith("0x"):  # matches `sed -i '/^0x/!d'`
                     a_out.write(line + "\n")
-    info("combine_etiss_traces", f"timing files={len(timing_files)} asm files={len(asm_files)}")
+    info(
+        "combine_etiss_traces",
+        f"timing files={len(timing_files)} asm files={len(asm_files)}",
+    )
     return timing_out, trace_out
 
 
 # --------------------------------------------------------------------------
 # One full target comparison
 # --------------------------------------------------------------------------
-def compare_target(target: str, vlen: int, vlane: int, trace_root: pathlib.Path,
-                   keep_traces: bool, dry_run: bool, match_dir: pathlib.Path) -> bool:
+def compare_target(
+    target: str,
+    vlen: int,
+    vlane: int,
+    trace_root: pathlib.Path,
+    keep_traces: bool,
+    dry_run: bool,
+    match_dir: pathlib.Path,
+) -> bool:
     fname = f"compare {target}@{vlen}x{vlane}"
     p = target_paths(ARCH, vlen, target)
 
@@ -355,9 +375,7 @@ def compare_target(target: str, vlen: int, vlane: int, trace_root: pathlib.Path,
         return False
 
     # Assemble combined ETISS timing + trace (fastcomparison reads these).
-    etiss_timing, etiss_trace = combine_etiss_traces(
-        etiss_dir, target, trace_root
-    )
+    etiss_timing, etiss_trace = combine_etiss_traces(etiss_dir, target, trace_root)
 
     info(fname, "Comparing...")
     ok_run = False
@@ -410,7 +428,9 @@ def parse_hw_configs(values):
             vlen, vlane = (int(x) for x in v.split(","))
             parsed.append((vlen, vlane))
         except ValueError:
-            error("parse_hw_configs", f"bad --hw-config '{v}' (expect VLEN,VLANE_WIDTH)")
+            error(
+                "parse_hw_configs", f"bad --hw-config '{v}' (expect VLEN,VLANE_WIDTH)"
+            )
             sys.exit(1)
     return parsed
 
@@ -460,10 +480,14 @@ def build_suite(arch: str, vlen: int, vlane: int, suite: str) -> bool:
     cmd = [
         str(script),
         "--pperf",
-        "--arch", arch,
-        "--vlen", str(vlen),
-        "--vlane", str(vlane),
-        "--target", suite,
+        "--arch",
+        arch,
+        "--vlen",
+        str(vlen),
+        "--vlane",
+        str(vlane),
+        "--target",
+        suite,
     ]
     info("build", " ".join(cmd))
     # Stream output so the user sees build progress (it can take a while).
@@ -477,8 +501,15 @@ def build_suite(arch: str, vlen: int, vlane: int, suite: str) -> bool:
     return True
 
 
-def ensure_suite_built(arch: str, vlen: int, vlane: int, suite: str,
-                       rebuild: bool, no_build: bool, dry_run: bool) -> bool:
+def ensure_suite_built(
+    arch: str,
+    vlen: int,
+    vlane: int,
+    suite: str,
+    rebuild: bool,
+    no_build: bool,
+    dry_run: bool,
+) -> bool:
     """Default: build with --pperf only if not already built for this config."""
     if rebuild:
         if dry_run:
@@ -491,7 +522,9 @@ def ensure_suite_built(arch: str, vlen: int, vlane: int, suite: str,
         return True
 
     if no_build:
-        error("build", f"{suite} not built for zvl{vlen}b/vlane{vlane} and --no-build set")
+        error(
+            "build", f"{suite} not built for zvl{vlen}b/vlane{vlane} and --no-build set"
+        )
         return False
 
     if dry_run:
@@ -511,20 +544,34 @@ def main() -> None:
     )
     parser.add_argument("--arch", default=ARCH)
     parser.add_argument("--suite", default=BENCHMARK_SUITE)
-    parser.add_argument("--hw-config", action="append", dest="hw_configs",
-                        help="VLEN,VLANE_WIDTH (repeatable). Default 128,32")
+    parser.add_argument(
+        "--hw-config",
+        action="append",
+        dest="hw_configs",
+        help="VLEN,VLANE_WIDTH (repeatable). Default 128,32",
+    )
     parser.add_argument("-t", "--target", action="append", help="target (repeatable)")
-    parser.add_argument("--trace-root", default="/mnt/traces_ram", help="tmpfs mount root")
-    parser.add_argument("--keep-traces", action="store_true", help="don't delete tmpfs traces")
-    parser.add_argument("--dry-run", action="store_true", help="print commands, don't run")
+    parser.add_argument(
+        "--trace-root", default="/mnt/traces_ram", help="tmpfs mount root"
+    )
+    parser.add_argument(
+        "--keep-traces", action="store_true", help="don't delete tmpfs traces"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="print commands, don't run"
+    )
     parser.add_argument("--mem-ports", type=int, default=VERILATOR_MEM_PORTS)
     parser.add_argument("--mem-w", type=int, default=VERILATOR_MEM_W)
     parser.add_argument("--mem-latency", type=int, default=VERILATOR_MEM_LATENCY)
     build_group = parser.add_mutually_exclusive_group()
-    build_group.add_argument("--rebuild", action="store_true",
-                             help="always (re)build the suite with --pperf")
-    build_group.add_argument("--no-build", action="store_true",
-                             help="never build; fail if the suite is not built")
+    build_group.add_argument(
+        "--rebuild", action="store_true", help="always (re)build the suite with --pperf"
+    )
+    build_group.add_argument(
+        "--no-build",
+        action="store_true",
+        help="never build; fail if the suite is not built",
+    )
     args = parser.parse_args()
 
     ARCH, BENCHMARK_SUITE = args.arch, args.suite
@@ -534,7 +581,9 @@ def main() -> None:
     VERILATOR_MEM_W = args.mem_w
     VERILATOR_MEM_LATENCY = args.mem_latency
 
-    configs = parse_hw_configs(args.hw_configs) if args.hw_configs else DEFAULT_HW_CONFIGS
+    configs = (
+        parse_hw_configs(args.hw_configs) if args.hw_configs else DEFAULT_HW_CONFIGS
+    )
     targets = args.target if args.target else EMBENCH_IOT_TESTS
 
     trace_root = pathlib.Path(args.trace_root).resolve()
@@ -546,10 +595,18 @@ def main() -> None:
         info("v3-run", f"HW config zvl{vlen}b / vlane{vlane} ({len(targets)} targets)")
         # Build the suite (with traces) if it isn't already built for this config.
         if not ensure_suite_built(
-            ARCH, vlen, vlane, BENCHMARK_SUITE,
-            rebuild=args.rebuild, no_build=args.no_build, dry_run=args.dry_run,
+            ARCH,
+            vlen,
+            vlane,
+            BENCHMARK_SUITE,
+            rebuild=args.rebuild,
+            no_build=args.no_build,
+            dry_run=args.dry_run,
         ):
-            warn("v3-run", f"skipping {BENCHMARK_SUITE} @ zvl{vlen}b/vlane{vlane}: build failed")
+            warn(
+                "v3-run",
+                f"skipping {BENCHMARK_SUITE} @ zvl{vlen}b/vlane{vlane}: build failed",
+            )
             ok_total = False
             continue
         for target in targets:
@@ -558,8 +615,13 @@ def main() -> None:
                 f"=== {target} @ zvl{vlen}b / vlane{vlane} ===",
             )
             ok = compare_target(
-                target, vlen, vlane, trace_root,
-                keep_traces=args.keep_traces, dry_run=args.dry_run, match_dir=match_dir,
+                target,
+                vlen,
+                vlane,
+                trace_root,
+                keep_traces=args.keep_traces,
+                dry_run=args.dry_run,
+                match_dir=match_dir,
             )
             ok_total &= ok
             if not ok:

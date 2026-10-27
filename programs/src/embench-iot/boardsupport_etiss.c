@@ -16,24 +16,17 @@
 
 #include "csr.h"
 
-/* Cycle counts captured by the start/stop triggers. */
-volatile uint64_t g_start_cycles;
-volatile uint64_t g_stop_cycles;
+void __attribute__((noinline)) address_match_start() { volatile int a = 1; }
+void __attribute__((noinline)) address_match_end() { volatile int a = 1; }
 
-void
-initialise_board (void)
-{
+void initialise_board(void) {
   /* ETISS needs no board initialisation before main(). */
 }
 
-void __attribute__ ((noinline, externally_visible))
-start_trigger (void)
-{
-  g_start_cycles = rdcycle64 ();
+void __attribute__((noinline, externally_visible)) start_trigger(void) {
+  address_match_start();
 }
 
-void __attribute__ ((noinline, externally_visible))
-stop_trigger (void)
-{
-  g_stop_cycles = rdcycle64 ();
+void __attribute__((noinline, externally_visible)) stop_trigger(void) {
+  address_match_end();
 }
