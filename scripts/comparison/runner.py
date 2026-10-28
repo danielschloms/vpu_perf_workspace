@@ -83,6 +83,7 @@ SCALAR_CORE = os.environ.get("SCALAR_CORE", "cv32a60x")
 SUITE_DIR_NAMES = {
     "embench_iot": "embench-iot",
     "mlperftiny": "tiny",
+    "simple-patterns": "simple-patterns",
 }
 
 # (VLEN, VLANE_WIDTH). For now only 128/32 is exercised.
@@ -108,26 +109,53 @@ VERILATOR_ADDR_OFFSET = int(os.environ.get("VERILATOR_ADDR_OFFSET", "0x80000000"
 # EMBENCH IOT baselines (target names refer to the benchmark, NOT the
 # simulator-specific suffix). Override with --target.
 EMBENCH_IOT_TESTS = [
-    # "aha-mont64",
-    # "edn",
-    # "md5sum",
-    # "nsichneu",
+    "aha-mont64",
+    "edn",
+    "md5sum",
+    "nsichneu",
     # "sglib-combined",
-    # "tarfind",
-    # "xgboost",
+    "tarfind",
+    "xgboost",
     "crc32",
-    # "huffbench",
-    # "slre",
-    # "ud",
-    # "depthconv",
-    # "matmult-int",
+    "huffbench",
+    "slre",
+    "ud",
+    "depthconv",
+    "matmult-int",
     # "statemate",
-    # "wikisort",
-    # "qrduino",
+    "wikisort",
+    "qrduino",
     # "picojpeg",
-    # "nettle-sha256",
-    # "nettle-aes",
+    "nettle-sha256",
+    "nettle-aes",
 ]
+
+# Simple vector functional-unit patterns (pure-ASM). Target names refer to the
+# pattern, NOT the simulator-specific suffix. Override with --target.
+# NOTE: load_div_vv_store / load_div_vx_store are EXCLUDED: the Verilator RTL
+# model deadlocks on vdiv.vv (only works if run individually, and even then
+# the RTL-side stalls), so they cannot be calibrated against Verilator.
+SIMPLE_PATTERNS_TESTS = [
+    "crit_toy",
+    "load_alu_vv_store",
+    "load_alu_vx_store",
+    "load_macc_vv_store",
+    "load_mul_vv_store",
+    "load_red_store",
+    "load_store",
+    "loadstores",
+    "store_unpack_interleave",
+    "vmv_red_vmv",
+    "vmv_v_i_store",
+]
+
+
+def default_suite_tests() -> list[str]:
+    """Default target list for the currently-selected suite."""
+    if BENCHMARK_SUITE == "simple-patterns":
+        return SIMPLE_PATTERNS_TESTS
+    return EMBENCH_IOT_TESTS
+
 
 MAX_TRACE_LINES_DIAG = 20  # extra debug lines shown on mismatch
 
@@ -616,7 +644,7 @@ def main() -> None:
     configs = (
         parse_hw_configs(args.hw_configs) if args.hw_configs else DEFAULT_HW_CONFIGS
     )
-    targets = args.target if args.target else EMBENCH_IOT_TESTS
+    targets = args.target if args.target else default_suite_tests()
 
     trace_root = pathlib.Path(args.trace_root).resolve()
     ensure_trace_root(trace_root)

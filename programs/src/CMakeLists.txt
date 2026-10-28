@@ -9,6 +9,9 @@
 # --- embench-iot -----------------------------------------------------------
 add_subdirectory(embench-iot)
 
+# --- simple-patterns (pure-ASM functional-unit tests for model tuning) -----
+add_subdirectory(simple-patterns)
+
 # --- MLPerfTiny (WIP; opt-in) ----------------------------------------------
 # Enabled with -DEMBENCH_MLPERFTINY=ON. Its CMakeLists currently targets the old
 # framework build and must be adapted before it can be built by default.
