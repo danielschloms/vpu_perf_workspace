@@ -1,6 +1,0 @@
-build/
-mlonmcu/
-workspace/
-venv/
-.venv/
-*.csv
