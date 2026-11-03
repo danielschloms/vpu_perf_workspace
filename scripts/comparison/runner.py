@@ -76,7 +76,7 @@ BENCHMARK_SUITE = "embench_iot"
 
 # The Verilator model is built per scalar core in this repo; the comparison
 # uses one core (the one the programs were built against / the default).
-SCALAR_CORE = os.environ.get("SCALAR_CORE", "cv32a60x")
+SCALAR_CORE = os.environ.get("SCALAR_CORE", "cv32e40x")
 
 # Map the logical suite name to the actual build subdirectory under
 # <repo>/programs/build/src/.
@@ -485,7 +485,8 @@ def compare_target(
         for tmp in (etiss_timing, etiss_trace, verilator_trace, match_file):
             tmp.unlink(missing_ok=True)
         # Drop the scratch CWD (it holds the model's `trace_hart_*.dasm`).
-        shutil.rmtree(run_cwd, ignore_errors=True)
+    
+    shutil.rmtree(run_cwd, ignore_errors=True)
     return ok_run
 
 

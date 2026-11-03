@@ -38,7 +38,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SOURCE_DIR="${REPO_ROOT}/rtl/vicuna2"
 
 # Defaults (must match rtl/vicuna2/vector_config.cmake)
-SCALAR_CORE="${SCALAR_CORE:-cv32a60x}"
+SCALAR_CORE="${SCALAR_CORE:-cv32e40x}"
 RISCV_ARCH="${RISCV_ARCH:-rv32im_zve32x}"
 VREG_W="${VREG_W:-128}"
 VLANE_W="${VLANE_W:-32}"

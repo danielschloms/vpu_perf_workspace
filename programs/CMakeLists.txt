@@ -49,7 +49,7 @@ enable_testing()
 # RISC-V arch and the vector micro-architecture:
 #   rtl/vicuna2/build/<SCALAR_CORE>/<RISCV_ARCH>_zvl<VREG_W>_vl<VLANE_W>
 # where VREG_W is the vector register width (VLEN) and VLANE_W the lane width.
-set(SCALAR_CORE "cv32a60x" CACHE STRING "Scalar core: cv32e40x | cv32a60x")
+set(SCALAR_CORE "cv32e40x" CACHE STRING "Scalar core: cv32e40x | cv32a60x")
 set(RISCV_ARCH "rv32im_zve32x" CACHE STRING "RISC-V architecture config")
 set(VREG_W "128" CACHE STRING "Vector register width (VLEN) in bits")
 set(VLANE_W "32" CACHE STRING "Vector lane width in bits")

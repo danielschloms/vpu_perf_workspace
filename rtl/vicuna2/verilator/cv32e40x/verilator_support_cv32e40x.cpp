@@ -445,7 +445,7 @@ void report_stats() {
           ((float)(sum_vec_lengths)) / ((float)vector_instr));
   fprintf(stderr, "AVG VL Bytes: %f  \n\n",
           ((float)(sum_vec_lengths_bytes)) / ((float)vector_instr));
-  fprintf(stderr, "AVG VREG Usage %: %f  \n\n",
+  fprintf(stderr, "AVG VREG Usage %%: %f  \n\n",
           ((float)(sum_vec_percentage)) / ((float)vector_instr) * 100);
   return;
 }

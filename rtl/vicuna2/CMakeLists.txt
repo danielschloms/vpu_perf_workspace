@@ -213,7 +213,7 @@ if(${SCALAR_CORE} STREQUAL "cv32e40x")
         INCLUDE_DIRS ${INCLUDE_OBI} ${CV32E40X_INCLUDE} ${VICUNA_FPU_INCS} ${VICUNA_INCS} ${FPU_SS_INCLUDE} ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE} ${CMAKE_CURRENT_SOURCE_DIR}
         TOP_MODULE vproc_top
         PREFIX Vvproc_top
-        # ${TRACE}
+        ${TRACE}
         VERILATOR_ARGS -cc -exe ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/verilator_main.cpp --unroll-count 1024
         -Wno-WIDTH -Wno-PINMISSING -Wno-UNOPTFLAT
         -Wno-UNSIGNED -Wno-IMPLICIT -Wno-LITENDIAN -Wno-CASEINCOMPLETE
@@ -225,7 +225,7 @@ if(${SCALAR_CORE} STREQUAL "cv32e40x")
         -Wno-IMPLICITSTATIC
         -Wno-IEEEMAYDEPRECATE
         #+define+COREV_ASSERT_OFF       #Fixes UVM error with CV32E40X (Needed when not using -DVPROC_SVA)
-        # ${TRACE_FLAG}
+        ${TRACE_FLAG}
         --assert -DVPROC_SVA
         -GMEM_W=${MEM_W} -GVMEM_W=${VMEM_W} -GMEM_PORTS=${MEM_PORTS}
         ${VICUNA_MODE}
@@ -243,7 +243,7 @@ elseif(${SCALAR_CORE} STREQUAL "cv32a60x") #TODO: Verify/Test support for floati
         INCLUDE_DIRS ${INCLUDE_OBI} ${CV32A60X_INCLUDE} ${VICUNA_INCS} ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE} ${CMAKE_CURRENT_SOURCE_DIR}
         TOP_MODULE vproc_top
         PREFIX Vvproc_top
-        # ${TRACE}
+        ${TRACE}
         VERILATOR_ARGS -cc -exe ${CMAKE_CURRENT_SOURCE_DIR}/verilator/${SCALAR_CORE}/verilator_main.cpp --unroll-count 1024
         -Wno-WIDTH -Wno-PINMISSING -Wno-UNOPTFLAT
         -Wno-UNSIGNED -Wno-IMPLICIT -Wno-LITENDIAN -Wno-CASEINCOMPLETE
@@ -256,7 +256,7 @@ elseif(${SCALAR_CORE} STREQUAL "cv32a60x") #TODO: Verify/Test support for floati
         -Wno-IEEEMAYDEPRECATE
         #+define+COREV_ASSERT_OFF       #Fixes UVM error with CV32E40X (Needed when not using -DVPROC_SVA)
         #--clk clk_i
-        # ${TRACE_FLAG}
+        ${TRACE_FLAG}
         --assert -DVPROC_SVA
         -GMEM_W=${MEM_W} -GVMEM_W=${VMEM_W} -GMEM_PORTS=${MEM_PORTS}
         ${VICUNA_MODE}
