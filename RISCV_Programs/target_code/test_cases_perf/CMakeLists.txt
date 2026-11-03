@@ -1,0 +1,15 @@
+if(VERILATOR)
+    add_executable_verilator(aes aes/aes.c)
+    add_executable_verilator(edge edge/edge.c)
+    add_executable_verilator(fir fir/fir.c)
+    add_executable_verilator(iir iir/iir.c)
+    add_executable_verilator(jdct jdct/jdct.c)
+else()
+    add_executable_etiss(aes aes/aes.c)
+    add_executable_etiss(edge edge/edge.c)
+    add_executable_etiss(fir fir/fir.c)
+    add_executable_etiss(iir iir/iir.c)
+    add_executable_etiss(jdct jdct/jdct.c)
+endif()
+
+
