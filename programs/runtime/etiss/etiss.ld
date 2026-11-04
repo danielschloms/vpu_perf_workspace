@@ -30,13 +30,18 @@ SECTIONS
 {
   /* ================ ROM ================ */
 
-  .text : {
+  .common : {
+    *(.common .common.* )
+  }  > ROM
+
+  .text : ALIGN(16) {
     *(.text .text.* )
   }  > ROM
 
-  .rodata : {
+  .rodata : ALIGN(0x100) {
     *(.rodata .rodata.*)
   } > ROM
+
   .srodata : {
     *(.srodata .srodata.*)
   } > ROM

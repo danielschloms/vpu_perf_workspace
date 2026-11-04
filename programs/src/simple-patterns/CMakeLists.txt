@@ -57,9 +57,10 @@ function(add_simple_pattern src_path sim)
         target_link_directories(${target} PRIVATE "${CMAKE_BINARY_DIR}/runtime/etiss")
         target_link_options(${target} PRIVATE
             "-nostartfiles"
-            "--specs=${ETISS_RUNTIME}/etiss-semihost.specs"
+            # "--specs=${ETISS_RUNTIME}/etiss-semihost.specs"
             "-T${ETISS_RUNTIME}/etiss.ld"
         )
+        target_link_libraries(${target} PRIVATE etiss_crt0)
     else()
         target_compile_definitions(${target} PRIVATE VERILATOR=1)
         target_compile_options(${target} PRIVATE -Wno-array-bounds)
@@ -67,7 +68,7 @@ function(add_simple_pattern src_path sim)
             "-nostartfiles"
             "-T${VICUNA_RUNTIME}/link.ld"
         )
-        target_link_libraries(${target} PRIVATE bsp_Vicuna UART_Vicuna)
+        target_link_libraries(${target} PRIVATE bsp_Vicuna)
     endif()
 
     # ---------- post build: verilator .bin -> .vmem -> prog_<target>.txt ----

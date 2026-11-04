@@ -25,6 +25,8 @@ extern "C" {
 
 #include <stdint.h>
 
+#define SIG_ADDR *((volatile long *const) 0x00000408)
+
 static volatile long *const signal_addr   = (volatile long *const) 0x00000408;
 
 void benchmark_success();

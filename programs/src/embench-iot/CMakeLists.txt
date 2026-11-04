@@ -83,33 +83,23 @@ function(add_embench_benchmark bench sim)
     list(APPEND bench_srcs
         "${EMBENCH_ROOT}/support/beebsc.c"
     )
+    list(APPEND bench_srcs "${EMBENCH_ROOT}/support/main.c")
+    list(APPEND bench_srcs "${CMAKE_CURRENT_SOURCE_DIR}/boardsupport.c")
 
-    # The generic support/main.c returns from main(), which the Vicuna2 crt0
-    # redirects back to _start (restart loop) so the model never sees the
-    # result.  Verilator therefore gets its own main() that writes the MMIO
-    # termination signal (0x408: 0x0 pass / 0xF fail) instead of returning.
-    if(sim STREQUAL "verilator")
-        list(APPEND bench_srcs "${CMAKE_CURRENT_SOURCE_DIR}/main_vicuna2.c")
-    else()
-        list(APPEND bench_srcs "${EMBENCH_ROOT}/support/main.c")
-    endif()
-
-    if(sim STREQUAL "etiss")
-        list(APPEND bench_srcs "${CMAKE_CURRENT_SOURCE_DIR}/boardsupport_etiss.c")
-        set(sim_inc "${ETISS_RUNTIME}")
-    elseif(sim STREQUAL "verilator")
-        list(APPEND bench_srcs "${CMAKE_CURRENT_SOURCE_DIR}/boardsupport_vicuna2.c")
-        set(sim_inc "${VICUNA_RUNTIME}")
-    else()
-        message(FATAL_ERROR "Unknown simulator: ${sim}")
-    endif()
+    # if(sim STREQUAL "etiss")
+    #     set(sim_inc "${ETISS_RUNTIME}")
+    # elseif(sim STREQUAL "verilator")
+    #     set(sim_inc "${VICUNA_RUNTIME}")
+    # else()
+    #     message(FATAL_ERROR "Unknown simulator: ${sim}")
+    # endif()
 
     add_executable(${target} ${bench_srcs})
 
     target_include_directories(${target} PRIVATE
         "${EMBENCH_ROOT}/support"
         "${bench_dir}"
-        "${sim_inc}"
+        # "${sim_inc}"
     )
 
     target_compile_options(${target} PRIVATE ${EMBENCH_CFLAGS})
@@ -119,7 +109,7 @@ function(add_embench_benchmark bench sim)
         target_compile_options(${target} PRIVATE -std=gnu17)
     endif()
     target_compile_definitions(${target} PRIVATE
-        WARMUP_HEAT=1
+        WARMUP_HEAT=0
         GLOBAL_SCALE_FACTOR=1
     )
 
@@ -128,17 +118,18 @@ function(add_embench_benchmark bench sim)
         target_link_directories(${target} PRIVATE "${CMAKE_BINARY_DIR}/runtime/etiss")
         target_link_options(${target} PRIVATE
             "-nostartfiles"
-            "--specs=${ETISS_RUNTIME}/etiss-semihost.specs"
+            # "--specs=${ETISS_RUNTIME}/etiss-semihost.specs"
             "-T${ETISS_RUNTIME}/etiss.ld"
         )
-        target_link_libraries(${target} PRIVATE m)
+        target_link_libraries(${target} PRIVATE etiss_crt0 m)
     else()
+    add_dependencies(${target} bsp_Vicuna)
         target_compile_options(${target} PRIVATE -Wno-array-bounds)
         target_link_options(${target} PRIVATE
             "-nostartfiles"
             "-T${VICUNA_RUNTIME}/link.ld"
         )
-        target_link_libraries(${target} PRIVATE bsp_Vicuna UART_Vicuna)
+        target_link_libraries(${target} PRIVATE bsp_Vicuna m)
     endif()
 
     if(sim STREQUAL "verilator")
@@ -157,24 +148,25 @@ function(add_embench_benchmark bench sim)
         > "${bench}_${sim}_dump.txt"
     )
 
+    set(TEST_NAME embench_${target})
     if(sim STREQUAL "etiss")
-        add_test(NAME ${target}
+        add_test(NAME ${TEST_NAME}
             COMMAND ${ETISS_PROCESSOR}
-                -i${ETISS_INI}
-                --vp.elf_file=${CMAKE_CURRENT_BINARY_DIR}/${target}
-                --arch.cpu=RV32IMACFDV_zvl${VREG_W}b
+            -i${ETISS_INI}
+            --vp.elf_file=${CMAKE_CURRENT_BINARY_DIR}/${target}
+            --arch.cpu=RV32IMACFDV_zvl${VREG_W}b
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     else()
-        add_test(NAME ${target}
+        add_test(NAME ${TEST_NAME}
             COMMAND ${VERILATOR_MODEL}
-                ${CMAKE_CURRENT_BINARY_DIR}/prog_${target}.txt
-                ${MEM_PORTS} ${MEM_W} 4194304 ${MEM_LATENCY} 1 ${target} ${VREG_W} 0
+            ${CMAKE_CURRENT_BINARY_DIR}/prog_${target}.txt
+            ${MEM_PORTS} ${MEM_W} 4194304 ${MEM_LATENCY} 1 ${target} ${VREG_W} 0
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     endif()
 
     # Short timeout: the simulated benchmarks can hang on RTL bugs, so cap each
     # test at 10 seconds and let ctest report the ones that don't complete.
-    set_tests_properties(${target} PROPERTIES TIMEOUT 100)
+    set_tests_properties(${TEST_NAME} PROPERTIES TIMEOUT 100)
 
     message(STATUS "embench: added ${target}")
 endfunction()

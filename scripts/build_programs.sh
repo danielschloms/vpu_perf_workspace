@@ -14,7 +14,7 @@
 #   scripts/build_programs.sh [options]
 #
 # Options:
-#   --scalar-core <name>   Scalar core (cv32e40x | cv32a60x)   [default: cv32a60x]
+#   --scalar-core <name>   Scalar core (cv32e40x | cv32a60x)   [default: cv32e40x]
 #   --arch <isa>           RISC-V architecture config          [default: rv32im_zve32x]
 #   --vlen <bits>          Vector register width / VLEN        [default: 128]
 #   --lane-width <bits>    Vector lane width (VLANE_W)         [default: 32]
@@ -49,7 +49,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SOURCE_DIR="${REPO_ROOT}/programs"
 
 # Defaults (must match programs/CMakeLists.txt and rtl/vicuna2/vector_config.cmake)
-SCALAR_CORE="${SCALAR_CORE:-cv32a60x}"
+SCALAR_CORE="${SCALAR_CORE:-cv32e40x}"
 RISCV_ARCH="${RISCV_ARCH:-rv32im_zve32x}"
 VREG_W="${VREG_W:-128}"
 VLANE_W="${VLANE_W:-32}"
@@ -142,6 +142,13 @@ echo "=============================================="
 
 mkdir -p "${BUILD_DIR}"
 
+RV_GCC_DIR="${HOME}/opt/rv32im_zve32x"
+GCC_PREFIX="riscv32-unknown-elf-"
+CC="${RV_GCC_DIR}/bin/${GCC_PREFIX}gcc"
+CXX="${RV_GCC_DIR}/bin/${GCC_PREFIX}g++"
+ASM="${RV_GCC_DIR}/bin/${GCC_PREFIX}gcc"
+TC_FILE="${SOURCE_DIR}/cmake/toolchain-llvm.cmake"
+
 CMAKE_ARGS=(
     -S "${SOURCE_DIR}"
     -B "${BUILD_DIR}"
@@ -163,6 +170,7 @@ CMAKE_ARGS=(
     "-DEMBENCH_ETISS=${EMBENCH_ETISS}"
     "-DEMBENCH_VERILATOR=${EMBENCH_VERILATOR}"
     "-DEMBENCH_MLPERFTINY=${EMBENCH_MLPERFTINY}"
+    "-DCMAKE_TOOLCHAIN_FILE=${TC_FILE}"
 )
 if [[ -n "${EMBENCH_ONLY}" ]]; then
     CMAKE_ARGS+=("-DEMBENCH_ONLY=${EMBENCH_ONLY}")

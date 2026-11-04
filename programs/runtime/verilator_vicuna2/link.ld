@@ -39,13 +39,18 @@ SECTIONS
 
   /* ================ ROM ================ */
 
-  .text : {
+  .common : {
+    *(.common .common.* )
+  }  > ROM
+
+  .text : ALIGN(16) {
     *(.text .text.* )
   }  > ROM
 
-  .rodata : {
+  .rodata : ALIGN(0x100) {
     *(.rodata .rodata.*)
   } > ROM
+
   .srodata : {
     *(.srodata .srodata.*)
   } > ROM
@@ -54,13 +59,10 @@ SECTIONS
 
   /* ================ RAM ================ */
 
-  /* Anchor the location counter to the start of RAM.  The RAM output sections
-     (init_array, eh_frame, ...) can be empty for minimal programs, in which case
-     GNU ld leaves the counter at the ROM end; that would make __data_start /
-     __sdata_start / __global_pointer$ resolve to a ROM address and force the
-     linker to relax gp-relative accesses into (absolute) lui+offset sequences.
-     Resetting to ORIGIN(RAM) keeps the data base symbols in RAM so the small-
-     data (gp-relative) addressing is used consistently. */
+  /* Anchor the location counter to the start of RAM (see verilator_vicuna2/link.ld
+     for the rationale).  Keeps __data_start / __sdata_start / __global_pointer$
+     in RAM so gp-relative data addressing is used even when the preceding RAM
+     output sections are empty. */
   . = ORIGIN(RAM);
 
   .init_array : {
@@ -91,23 +93,23 @@ SECTIONS
       *(.sdata .sdata.*)
   } > RAM
 
-  _bss_start = .;
+  __bss_start = .;
   .sbss : {
       *(.sbss .sbss.*)
   } > RAM
   .bss : {
       *(.bss .bss.*)
   } > RAM
-  _bss_end = .;
+  _end = .;
 
   /* do not place anything after this address, because the heap starts here! */
 
   /* point the global pointer so it can access sdata, sbss, data and bss */
-  __global_pointer$ = MIN(__sdata_start + 0x800, MAX(__data_start + 0x800, _bss_end - 0x800));
+  __global_pointer$ = MIN(__sdata_start + 0x800, MAX(__data_start + 0x800, _end - 0x800));
 
   /* stack pointer starts at the top of the ram */
-  _stack = ORIGIN(RAM) + LENGTH(RAM);
+  __stack = ORIGIN(RAM) + LENGTH(RAM);
   .stack : {
-    ASSERT ((_stack > (_bss_end + __heap_size + __stack_size)), "Error: RAM too small for heap and stack");
-  } > RAM
+    ASSERT ((__stack > (_end + __heap_size + __stack_size)), "Error: RAM too small for heap and stack");
+  }
 }

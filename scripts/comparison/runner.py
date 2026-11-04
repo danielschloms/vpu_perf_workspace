@@ -113,7 +113,7 @@ EMBENCH_IOT_TESTS = [
     "edn",
     "md5sum",
     "nsichneu",
-    # "sglib-combined",
+    "sglib-combined",
     "tarfind",
     "xgboost",
     "crc32",
@@ -125,7 +125,7 @@ EMBENCH_IOT_TESTS = [
     # "statemate",
     "wikisort",
     "qrduino",
-    # "picojpeg",
+    "picojpeg",
     "nettle-sha256",
     "nettle-aes",
 ]

@@ -2,128 +2,191 @@
 # Licensed under the Solderpad Hardware License v2.1, see LICENSE.txt for details
 # SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
 
+#ifndef __SIZEOF_POINTER__
+#error pointer size unknown
+#endif
 
-    .section .vectors, "ax", @progbits
-    .option  norvc;
+#if __SIZEOF_POINTER__ == 4
+#define LREG lw
+#define SREG sw
+#define REGBYTES 4
+#elif __SIZEOF_POINTER__ == 8
+#define LREG ld
+#define SREG sd
+#define REGBYTES 8
+#else
+#error __SIZEOF_POINTER__ neither 4 nor 8
+#endif
+
+# Verilator - Vicuna2 boot
+  .section .vectors, "ax", @progbits
+  .option  norvc;
 
 # redirect all interrupts to the execption wrapper
-    .rept    31
-    nop
-    .endr
-    j        exc_wrapper_jmp
+  .rept    31
+  nop
+  .endr
+  j        exc_wrapper_jmp
 
 # the reset vector is redirected to _start
-    j        _start_jmp
+  j        _start_jmp
 
 exc_wrapper_jmp:
-    la       t0, exc_wrapper
-    jr       t0
+  la       t0, _trap_vector
+  jr       t0
 _start_jmp:
-    la       t0, _start
-    jr       t0
+  la       t0, _start
+  jr       t0
 
-    .section .text
+# #ifndef SIMULATION_RUNS
+# #define SIMULATION_RUNS 1
+# #endif
+  .text
 
-# entry point
-    .global  _start
-    .type    _start, @function
+  .global  _start
+  .type    _start, @function
 _start:
-    .option  push
-    .option  norelax
-    la       gp, __global_pointer$
-    .option  pop
-# initialize stack pointer
-    la       sp, _stack
 
-# clear bss
-    la       t1, _bss_start
-    la       t2, _bss_end
+# Enable RVV
+  csrr     a0, mstatus
+  li       a1, 0x00002200               #Init FS bits to enable F-EXT and VS bits to enable V-EXT
+  or       a0, a0, a1
+  csrw     mstatus, a0
 
-    bge      t1, t2, bss_clear_end
+# setup "Machine Trap-Vector Base-Address"
+# mode is 0 -> all exceptions go to same code
+  la       t0, _trap_vector
+  csrw     mtvec, t0
 
-bss_clear_loop:
-    sw       x0, 0(t1)
-    addi     t1, t1, 4
-    ble      t1, t2, bss_clear_loop
+# Initialize global pointer
+  .option  push
+  .option  norelax
+  la       gp, __global_pointer$
+  .option  pop
 
-bss_clear_end:
+# Initialize the stack pointer
+  la       sp, __stack
 
-# jump to main (argc = 0, argv = 0, returns to _start)
-    li       a0, 0
-    li       a1, 0
-    la       ra, _start
-    j        main
+# Clear the bss segment
+# memset(void* str, int c, size_t n);
+# memset(__bss_start, 0, __bss_start - _end);
+  la       a0, __bss_start
+  li       a1, 0
+  la       a2, _end
+  sub      a2, a2, a0
+  call     memset
 
+# Register global termination functions
+# to be called upon exit
+  la       a0, __libc_fini_array
+  call     atexit
+
+# Run global initialization functions
+  call     __libc_init_array
+
+# load simulation runs count.
+# li s11, SIMULATION_RUNS
+
+simulation_loop:
+
+# beqz s11, end_simulation_loop
+
+# call user code
+# main(int argc, char *argv[]);
+# main(0, 0);
+# load argc and argv (TODO)
+  li       a0, 0
+  li       a1, 0
+  li       a2, 0                        # set envp = NULL just in case
+  call     main
+
+# addi s11, s11, -1
+
+# bnez s11, simulation_loop
+
+# end_simulation_loop:
+  tail     exit
 
 # default exception handler (infinite loop)
-    .weak    exception_handler
-    .type    exception_handler, @function
+  .weak    exception_handler
+  .type    exception_handler, @function
 exception_handler:
-    j        exception_handler
+  j        exception_handler
 
 
-# wrapper for exception handlers (saves registers and calls a handler function)
-exc_wrapper:
-# save registers:
-    addi     sp, sp, -80
-    sw       ra, 76(sp)
-    sw       s0, 72(sp)
-    addi     s0, sp, 80
-    sw       t0, 68(sp)
-    sw       t1, 64(sp)
-    sw       t2, 60(sp)
-    sw       t3, 56(sp)
-    sw       t4, 52(sp)
-    sw       t5, 48(sp)
-    sw       t6, 44(sp)
-    sw       a0, 40(sp)
-    sw       a1, 36(sp)
-    sw       a2, 32(sp)
-    sw       a3, 28(sp)
-    sw       a4, 24(sp)
-    sw       a5, 20(sp)
-    sw       a6, 16(sp)
-    sw       a7, 12(sp)
 
-# save mepc, mie and mstatus:
-    csrr     t0, mie
-    csrr     t1, mstatus
-    csrr     a1, mepc
-    sw       t0, 0(sp)
-    sw       t1, 4(sp)
-    sw       a1, 8(sp)
+  .p2align 2                            # align on 4-byte boundary
+_trap_vector:
+  addi     sp, sp, -32*REGBYTES
 
-# call exception handler (a0 = mcause, a1 = mepc, a2 = mtval, a3 = fp)
-    csrr     a0, mcause
-    csrr     a2, mtval
-    lw       a3, 72(sp)
-    call     exception_handler
+  SREG     x1, 1*REGBYTES(sp)
+  SREG     x2, 2*REGBYTES(sp)
+  SREG     x3, 3*REGBYTES(sp)
+  SREG     x4, 4*REGBYTES(sp)
+  SREG     x5, 5*REGBYTES(sp)
+  SREG     x6, 6*REGBYTES(sp)
+  SREG     x7, 7*REGBYTES(sp)
+  SREG     x8, 8*REGBYTES(sp)
+  SREG     x9, 9*REGBYTES(sp)
+  SREG     x10, 10*REGBYTES(sp)
+  SREG     x11, 11*REGBYTES(sp)
+  SREG     x12, 12*REGBYTES(sp)
+  SREG     x13, 13*REGBYTES(sp)
+  SREG     x14, 14*REGBYTES(sp)
+  SREG     x15, 15*REGBYTES(sp)
+  SREG     x16, 16*REGBYTES(sp)
+  SREG     x17, 17*REGBYTES(sp)
+  SREG     x18, 18*REGBYTES(sp)
+  SREG     x19, 19*REGBYTES(sp)
+  SREG     x20, 20*REGBYTES(sp)
+  SREG     x21, 21*REGBYTES(sp)
+  SREG     x22, 22*REGBYTES(sp)
+  SREG     x23, 23*REGBYTES(sp)
+  SREG     x24, 24*REGBYTES(sp)
+  SREG     x25, 25*REGBYTES(sp)
+  SREG     x26, 26*REGBYTES(sp)
+  SREG     x27, 27*REGBYTES(sp)
+  SREG     x28, 28*REGBYTES(sp)
+  SREG     x29, 29*REGBYTES(sp)
+  SREG     x30, 30*REGBYTES(sp)
+  SREG     x31, 31*REGBYTES(sp)
 
-# restore mepc, mie and mstatus (restoring mstatus disables interrupts):
-    lw       t0, 0(sp)
-    lw       t1, 4(sp)
-    lw       t2, 8(sp)
-    csrw     mie, t0
-    csrw     mstatus, t1
-    csrw     mepc, t2
+# void _trap_handler_c(unsigned long mcause, unsigned long mepc)
+  csrr     a0, mcause
+  csrr     a1, mepc
+  call     exception_handler
 
-# restore registers:
-    lw       a7, 12(sp)
-    lw       a6, 16(sp)
-    lw       a5, 20(sp)
-    lw       a4, 24(sp)
-    lw       a3, 28(sp)
-    lw       a2, 32(sp)
-    lw       a1, 36(sp)
-    lw       a0, 40(sp)
-    lw       t6, 44(sp)
-    lw       t5, 48(sp)
-    lw       t4, 52(sp)
-    lw       t3, 56(sp)
-    lw       t2, 60(sp)
-    lw       t1, 64(sp)
-    lw       t0, 68(sp)
-    lw       s0, 72(sp)
-    lw       ra, 76(sp)
-    addi     sp, sp, 80
-    mret
+  LREG     x1, 1*REGBYTES(sp)
+  LREG     x2, 2*REGBYTES(sp)
+  LREG     x3, 3*REGBYTES(sp)
+  LREG     x4, 4*REGBYTES(sp)
+  LREG     x5, 5*REGBYTES(sp)
+  LREG     x6, 6*REGBYTES(sp)
+  LREG     x7, 7*REGBYTES(sp)
+  LREG     x8, 8*REGBYTES(sp)
+  LREG     x9, 9*REGBYTES(sp)
+  LREG     x10, 10*REGBYTES(sp)
+  LREG     x11, 11*REGBYTES(sp)
+  LREG     x12, 12*REGBYTES(sp)
+  LREG     x13, 13*REGBYTES(sp)
+  LREG     x14, 14*REGBYTES(sp)
+  LREG     x15, 15*REGBYTES(sp)
+  LREG     x16, 16*REGBYTES(sp)
+  LREG     x17, 17*REGBYTES(sp)
+  LREG     x18, 18*REGBYTES(sp)
+  LREG     x19, 19*REGBYTES(sp)
+  LREG     x20, 20*REGBYTES(sp)
+  LREG     x21, 21*REGBYTES(sp)
+  LREG     x22, 22*REGBYTES(sp)
+  LREG     x23, 23*REGBYTES(sp)
+  LREG     x24, 24*REGBYTES(sp)
+  LREG     x25, 25*REGBYTES(sp)
+  LREG     x26, 26*REGBYTES(sp)
+  LREG     x27, 27*REGBYTES(sp)
+  LREG     x28, 28*REGBYTES(sp)
+  LREG     x29, 29*REGBYTES(sp)
+  LREG     x30, 30*REGBYTES(sp)
+  LREG     x31, 31*REGBYTES(sp)
+
+  addi     sp, sp, 32*REGBYTES
+  mret

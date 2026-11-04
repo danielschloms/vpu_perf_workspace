@@ -1,4 +1,5 @@
 build/
+build-*/
 .env
 opencode.json
 __pycache__

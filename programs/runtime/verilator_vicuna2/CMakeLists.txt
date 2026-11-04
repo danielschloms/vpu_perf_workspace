@@ -1,16 +1,18 @@
+cmake_minimum_required(VERSION 3.10)
 
-####
-#Add bsp library for Vicuna
-####
-add_library(bsp_Vicuna STATIC)
+project(bsp_Vicuna C CXX ASM)
 
-target_include_directories(bsp_Vicuna PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}
+set(VICUNA_LINKER "${CMAKE_CURRENT_SOURCE_DIR}/link.ld" CACHE STRING "The Vicuna linker")
+set(VICUNA_CRT_LIB ${CMAKE_CURRENT_BINARY_DIR} CACHE STRING "The Vicuna crt0 library search path")
+
+add_library(${PROJECT_NAME} STATIC 
+  crt0.S
+  # fixes.c
+  # trap_handler.c
+  lib/exit.c
 )
 
-target_sources(bsp_Vicuna PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/crt0.S
-)
+target_link_options(${PROJECT_NAME} PRIVATE "-T${VICUNA_LINKER}")
 
 
 add_library(UART_Vicuna STATIC)
@@ -22,8 +24,5 @@ target_include_directories(UART_Vicuna PUBLIC
 target_sources(UART_Vicuna PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/lib/uart.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/lib/uart.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/lib/vicuna_crt.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/lib/vicuna_crt.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/lib/terminate_benchmark.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/lib/terminate_benchmark.c
 )
+

@@ -307,7 +307,7 @@ void update_instructions(Vvproc_top *top) {
   if (current_WB_PC != last_WB_PC) {
     instr++;
     if (inst_trace) {
-      print_trace();
+      print_trace(top->vproc_top->core->instruction_wb);
     }
   }
   last_WB_PC = current_WB_PC;
@@ -327,12 +327,12 @@ auto enable_inst_trace(char const *path) -> void
 /**
  * @brief Format and write PC, instruction index, cycle, and cycle delta to file
  */
-auto print_trace() -> void
+auto print_trace(uint32_t insn) -> void
 {
   static uint64_t last_cycle = 0;
   inst_trace_file << std::hex << std::setw(8) << std::setfill('0')
                   << (uint32_t)current_WB_PC << ", ";
-  inst_trace_file << std::setw(8) << std::setfill('0') << instr;
+  inst_trace_file << std::setw(8) << std::setfill('0') << insn;
   inst_trace_file << ", " << std::dec << cycles << ", " << cycles - last_cycle
                   << "\n";
   last_cycle = cycles;

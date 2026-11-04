@@ -96,6 +96,11 @@ simulation_loop:
 
 # end_simulation_loop:
   tail                           exit
+# default exception handler (infinite loop)
+  .weak                          exception_handler
+  .type                          exception_handler, @function
+exception_handler:
+  j                              exception_handler
 
   .p2align                       2                                                                 # align on 4-byte boundary
 _trap_vector:
@@ -136,7 +141,7 @@ _trap_vector:
 # void _trap_handler_c(unsigned long mcause, unsigned long mepc)
   csrr                           a0, mcause
   csrr                           a1, mepc
-  call                           _trap_handler_c
+  call                           exception_handler
 
   LREG                           x1, 1*REGBYTES(sp)
   LREG                           x2, 2*REGBYTES(sp)

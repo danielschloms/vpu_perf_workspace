@@ -9,7 +9,7 @@
   li t1, CODE_SUCCESS;                                                         \
   sw t1, 0(t0);
 #else
-#define RET_INSTR li a0, 0; jr ra
+#define RET_INSTR li a0, 0; ret
 #endif
 
 /* Start-, and end label for address matching */

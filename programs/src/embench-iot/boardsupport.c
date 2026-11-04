@@ -14,14 +14,14 @@
 
 #include <stdint.h>
 
-#include "csr.h"
-
-void __attribute__((noinline)) address_match_start() { volatile int a = 1; }
-void __attribute__((noinline)) address_match_end() { volatile int a = 1; }
-
-void initialise_board(void) {
-  /* ETISS needs no board initialisation before main(). */
+void __attribute__((noinline, section(".common"))) address_match_start() {
+  volatile int a = 1;
 }
+void __attribute__((noinline, section(".common"))) address_match_end() {
+  volatile int a = 1;
+}
+
+void initialise_board(void) {}
 
 void __attribute__((noinline, externally_visible)) start_trigger(void) {
   address_match_start();
