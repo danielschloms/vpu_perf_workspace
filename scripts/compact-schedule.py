@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import pathlib
+from typing import TextIO
 from instrgroups import group_mapping
 
 batch_model_name = "perfModel->vectorBatchHandModel"
@@ -83,6 +84,7 @@ include
 )
 """)
 
+
 def batch_static_replace(line):
     line = line.replace("getVs1()", "getVs1(batch_i)")
     line = line.replace("getVs2()", "getVs2(batch_i)")
@@ -100,6 +102,38 @@ def batch_static_replace(line):
         "(batch_i == 0) * (perfModel->V2_Subpipe + 1),",
     )
     return line
+
+
+def write_batch_computations(batch_calc_stack: list, first_var: str, group_cpp: TextIO):
+    delay_fun = ""
+    for calc_line in batch_calc_stack:
+        pipe = "V1" if "V1" in calc_line else "V2"
+        if f"{first_var} =" in calc_line:
+            delay_fun = calc_line[calc_line.find("+") + 1 :].strip()[:-1]
+            calc_line = f"{first_var} = (batch_i == 0 ? n_V_DISP_stg : n_{pipe}_Unpack_stg) + {delay_fun};\n"
+        elif any(req in calc_line for req in ["Req_Vs1,", "Req_Vs2,", "Req_Vs3,"]):
+            calc_line = calc_line.replace("Req_Vs1", f"Req_Vs1 + {delay_fun}")
+            calc_line = calc_line.replace("Req_Vs2", f"Req_Vs2 + {delay_fun}")
+            calc_line = calc_line.replace("Req_Vs3", f"Req_Vs3 + {delay_fun}")
+        group_cpp.write(calc_line)
+
+
+def write_batch(group_cpp: TextIO, current_grp: str):
+    group_cpp.write("// Batched Pipeline Variables\n")
+    for var_line in batch_var_stack:
+        group_cpp.write(var_line)
+    first_var = batch_var_stack[0].strip().split(" ")[1][:-1]
+    batch_var_stack = []
+    group_cpp.write("// Batched Pipeline Calculation Loop\n")
+    group_cpp.write(
+        f"for (size_t batch_i = 0; batch_i < {batch_model_name}.{group_batch_fun_mapping[current_grp]}; batch_i++) {{\n"
+    )
+    write_batch_computations(batch_calc_stack, first_var, group_cpp)
+
+    batch_calc_stack = []
+    group_cpp.write("}\n")
+    group_cpp.write("// End Batch Loop")
+
 
 def main():
 
@@ -245,35 +279,7 @@ def main():
                             or "perfModel->V1_Pack_stg = n_V1_Pack_stg;" in line
                         ):
                             in_batch = False
-                            group_cpp.write("// Batched Pipeline Variables\n")
-                            for var_line in batch_var_stack:
-                                group_cpp.write(var_line)
-                            first_var = batch_var_stack[0].strip().split(" ")[1][:-1]
-                            batch_var_stack = []
-                            group_cpp.write("// Batched Pipeline Calculation Loop\n")
-                            group_cpp.write(
-                                f"for (size_t batch_i = 0; batch_i < {batch_model_name}.{group_batch_fun_mapping[current_grp]}; batch_i++) {{\n"
-                            )
-                            delay_fun = ""
-                            for calc_line in batch_calc_stack:
-                                pipe = "V1" if "V1" in calc_line else "V2"
-                                if f"{first_var} =" in calc_line:
-                                    delay_fun = calc_line[
-                                        calc_line.find("+") + 1 :
-                                    ].strip()[:-1]
-                                    calc_line = f"{first_var} = (batch_i == 0 ? n_V_DISP_stg : n_{pipe}_Unpack_stg) + {delay_fun};\n"
-                                elif any(
-                                    req in calc_line
-                                    for req in ["Req_Vs1,", "Req_Vs2,", "Req_Vs3,"]
-                                ):
-                                    calc_line = calc_line.replace("Req_Vs1", f"Req_Vs1 + {delay_fun}")
-                                    calc_line = calc_line.replace("Req_Vs2", f"Req_Vs2 + {delay_fun}")
-                                    calc_line = calc_line.replace("Req_Vs3", f"Req_Vs3 + {delay_fun}")
-                                group_cpp.write(calc_line)
-
-                            batch_calc_stack = []
-                            group_cpp.write("}\n")
-                            group_cpp.write("// End Batch Loop")
+                            write_batch(group_cpp, current_grp)
 
             group_cpp.write("} // Namespace")
             group_hpp.write("} // Namespace")
