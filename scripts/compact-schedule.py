@@ -118,21 +118,49 @@ def write_batch_computations(batch_calc_stack: list, first_var: str, group_cpp: 
         group_cpp.write(calc_line)
 
 
-def write_batch(group_cpp: TextIO, current_grp: str):
+def write_batch(
+    group_cpp: TextIO,
+    current_grp: str,
+    batch_var_stack: list[str],
+    batch_calc_stack: list[str],
+):
     group_cpp.write("// Batched Pipeline Variables\n")
     for var_line in batch_var_stack:
         group_cpp.write(var_line)
     first_var = batch_var_stack[0].strip().split(" ")[1][:-1]
-    batch_var_stack = []
     group_cpp.write("// Batched Pipeline Calculation Loop\n")
     group_cpp.write(
         f"for (size_t batch_i = 0; batch_i < {batch_model_name}.{group_batch_fun_mapping[current_grp]}; batch_i++) {{\n"
     )
     write_batch_computations(batch_calc_stack, first_var, group_cpp)
-
-    batch_calc_stack = []
+    batch_var_stack.clear()
+    batch_calc_stack.clear()
     group_cpp.write("}\n")
     group_cpp.write("// End Batch Loop")
+
+
+def batch_start_condition(line: str) -> bool:
+    return "// V1_Unpack" in line or "// V2_Unpack" in line
+
+
+def batch_end_condition(line: str) -> bool:
+    return (
+        "perfModel->V2_Pack_stg = n_V2_Pack_stg;" in line
+        or "perfModel->V1_Pack_stg = n_V1_Pack_stg;" in line
+    )
+
+
+def process_batch_line(
+    line: str, batch_var_stack: list[str], batch_calc_stack: list[str]
+):
+    # Use getters with batch parameter
+    line = batch_static_replace(line)
+    if "uint64_t" in line and "=" not in line:
+        # Variable
+        batch_var_stack.append(line)
+    else:
+        # Computation line
+        batch_calc_stack.append(line)
 
 
 def main():
@@ -261,25 +289,20 @@ def main():
                             continue
 
                         if in_batch:
-                            # Use getters with batch parameter
-                            line = batch_static_replace(line)
-                            if "uint64_t" in line and "=" not in line:
-                                # Variable
-                                batch_var_stack.append(line)
-                            else:
-                                # Calc
-                                batch_calc_stack.append(line)
+                            process_batch_line(line, batch_var_stack, batch_calc_stack)
                         else:
                             group_cpp.write(line)
 
-                        if "// V1_Unpack" in line or "// V2_Unpack" in line:
+                        if batch_start_condition(line):
                             in_batch = True
-                        if (
-                            "perfModel->V2_Pack_stg = n_V2_Pack_stg;" in line
-                            or "perfModel->V1_Pack_stg = n_V1_Pack_stg;" in line
-                        ):
+                        if batch_end_condition(line):
                             in_batch = False
-                            write_batch(group_cpp, current_grp)
+                            write_batch(
+                                group_cpp,
+                                current_grp,
+                                batch_var_stack,
+                                batch_calc_stack,
+                            )
 
             group_cpp.write("} // Namespace")
             group_hpp.write("} // Namespace")
