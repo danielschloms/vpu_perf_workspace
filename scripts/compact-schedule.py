@@ -38,8 +38,7 @@ group_batch_fun_mapping = {
 # (the original repo used <repo>/etiss_perfsim directly).
 ETISS_PERFSIM_DIR = pathlib.Path(__file__).parent.parent / "etiss-pe" / "etiss-perf-sim"
 VARIANTS_DIR = (
-    ETISS_PERFSIM_DIR
-    / "etiss_plugins/SoftwareEvalLib/libs/backends/variants"
+    ETISS_PERFSIM_DIR / "etiss_plugins/SoftwareEvalLib/libs/backends/variants"
 )
 VLENS = [64, 128, 256, 512, 1024]
 
@@ -169,6 +168,16 @@ def main():
                     vector_copy = True
                     scalar_copy = True
 
+                # To not break the script, add dependency to V*_Pack_stage to DISP
+                if "n_V_DISP_stg =" in line:
+                    if "V1" in line:
+                        line = line.replace(
+                            "n_Dispatcher", "n_Dispatcher, perfModel->V1_Pack_stg + 2"
+                        )
+                    else:
+                        line = line.replace(
+                            "n_Dispatcher", "n_Dispatcher, perfModel->V2_Pack_stg"
+                        )
                 if scalar_copy:
                     result_cpp.write(line)
                 elif vector_copy:
@@ -201,10 +210,14 @@ def main():
                             continue
 
                         if in_batch:
+                            # Use getters with batch parameter
                             line = line.replace("getVs1()", "getVs1(batch_i)")
                             line = line.replace("getVs2()", "getVs2(batch_i)")
                             line = line.replace("getVs3()", "getVs3(batch_i)")
                             line = line.replace("setVd(", "setVd(batch_i,")
+
+                            # Dependencies need the unpacking delay
+                            # line = line.replace("V1_Unpack_Fixed =", "V1_Unpack_Fixed = perfModel->vectorFixedDelayV1.getDelay() + ")
                             line = line.replace(
                                 "perfModel->V1_Subpipe,",
                                 "(batch_i == 0) * (perfModel->V1_Subpipe + 1),",
@@ -245,7 +258,14 @@ def main():
                                     delay_fun = calc_line[
                                         calc_line.find("+") + 1 :
                                     ].strip()[:-1]
-                                    calc_line = f"{first_var} = (batch_i == 0 ? n_V_DISP_stg : n_{pipe}_Unpack_stg);\n"
+                                    calc_line = f"{first_var} = (batch_i == 0 ? n_V_DISP_stg : n_{pipe}_Unpack_stg) + {delay_fun};\n"
+                                elif any(
+                                    req in calc_line
+                                    for req in ["Req_Vs1,", "Req_Vs2,", "Req_Vs3,"]
+                                ):
+                                    calc_line = calc_line.replace("Req_Vs1", f"Req_Vs1 + {delay_fun}")
+                                    calc_line = calc_line.replace("Req_Vs2", f"Req_Vs2 + {delay_fun}")
+                                    calc_line = calc_line.replace("Req_Vs3", f"Req_Vs3 + {delay_fun}")
                                 group_cpp.write(calc_line)
 
                             batch_calc_stack = []
