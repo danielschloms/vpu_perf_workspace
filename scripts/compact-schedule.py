@@ -85,7 +85,7 @@ include
 """)
 
 
-def batch_static_replace(line):
+def batch_static_replace(line: str) -> str:
     line = line.replace("getVs1()", "getVs1(batch_i)")
     line = line.replace("getVs2()", "getVs2(batch_i)")
     line = line.replace("getVs3()", "getVs3(batch_i)")
@@ -206,9 +206,8 @@ def main():
             in_batch = False
             batch_var_stack = []
             batch_calc_stack = []
-            scalar_copy = True
+            fun_copy = True
             inline = False
-            vector_copy = False
             vlevel = 0
             level = 0
             current_grp = ""
@@ -229,12 +228,9 @@ def main():
                         if f'"{insn}"' in line:
                             current_grp = grp
 
-                # Scalar & vector copying
-                if "static SchedulingFunction *schedulingFunction_vle32_v" in line:
-                    scalar_copy = False
                 if "static SchedulingFunction *schedulingFunction__def" in line:
                     inline = True
-                    scalar_copy = True
+                    fun_copy = True
 
                 if (
                     f"{zvl(vlen)}_PerformanceModel *perfModel" in line
@@ -242,23 +238,16 @@ def main():
                 ):
                     # Insert call in vector scheduling function
                     result_cpp.write(f"\t{current_grp}(perfModel_);\n")
-                    vector_copy = False
-                    scalar_copy = False
+                    fun_copy = False
                     vlevel = 1
 
                 vlevel += line.count("(")
                 vlevel -= line.count(")")
 
                 if vlevel <= 0:
-                    if (
-                        not scalar_copy
-                        and not vector_copy
-                        and not "}" in line
-                        and line.strip()
-                    ):
+                    if not fun_copy and not "}" in line and line.strip():
                         result_cpp.write("}")
-                    vector_copy = True
-                    scalar_copy = True
+                    fun_copy = True
 
                 # To not break the script, add dependency to V*_Pack_stage to DISP
                 if "n_V_DISP_stg =" in line:
@@ -270,9 +259,7 @@ def main():
                         line = line.replace(
                             "n_Dispatcher", "n_Dispatcher, perfModel->V2_Pack_stg"
                         )
-                if scalar_copy:
-                    result_cpp.write(line)
-                elif vector_copy:
+                if fun_copy:
                     result_cpp.write(line)
 
                 # Vector extracting
