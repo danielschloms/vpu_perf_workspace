@@ -152,7 +152,7 @@ def batch_end_condition(line: str) -> bool:
 
 def process_batch_line(
     line: str, batch_var_stack: list[str], batch_calc_stack: list[str]
-):
+) -> None:
     # Use getters with batch parameter
     line = batch_static_replace(line)
     if "uint64_t" in line and "=" not in line:
@@ -161,6 +161,19 @@ def process_batch_line(
     else:
         # Computation line
         batch_calc_stack.append(line)
+
+
+def found_extraction_fun(
+    line: str, extraction_mapping: dict, group_cpp: TextIO, group_hpp: TextIO, vlen: int
+) -> bool:
+    for group, single in extraction_mapping.items():
+        if f'"{single}"' in line:
+            group_cpp.write(
+                f"void {group}(PerformanceModel *perfModel_) {{\n{zvl(vlen)}_PerformanceModel *perfModel = static_cast<{zvl(vlen)}_PerformanceModel *>(perfModel_);\n"
+            )
+            group_hpp.write(f"void {group}(PerformanceModel *perfModel_);\n\n")
+            return True
+    return False
 
 
 def main():
@@ -188,7 +201,7 @@ def main():
             group_cpp.write(get_header_cpp(vlen))
             group_hpp.write(get_header_hpp(vlen))
 
-            active = False
+            active_extraction = False
             printout = False
             in_batch = False
             batch_var_stack = []
@@ -263,16 +276,10 @@ def main():
                     result_cpp.write(line)
 
                 # Vector extracting
-                if not active:
-                    for group, single in extraction_mapping.items():
-                        if f'"{single}"' in line:
-                            group_cpp.write(
-                                f"void {group}(PerformanceModel *perfModel_) {{\n{zvl(vlen)}_PerformanceModel *perfModel = static_cast<{zvl(vlen)}_PerformanceModel *>(perfModel_);\n"
-                            )
-                            group_hpp.write(
-                                f"void {group}(PerformanceModel *perfModel_);\n\n"
-                            )
-                            active = True
+                if not active_extraction:
+                    active_extraction = found_extraction_fun(
+                        line, extraction_mapping, group_cpp, group_hpp, vlen
+                    )
                 else:
                     if not printout:
                         if "// Enter" in line:
@@ -282,8 +289,7 @@ def main():
                         level += line.count("{")
                         level -= line.count("}")
                         if level <= 0:
-                            # print(f"Done Line {i}")
-                            active = False
+                            active_extraction = False
                             printout = False
                             group_cpp.write("}\n\n")
                             continue
