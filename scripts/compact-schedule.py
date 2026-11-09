@@ -83,6 +83,23 @@ include
 )
 """)
 
+def batch_static_replace(line):
+    line = line.replace("getVs1()", "getVs1(batch_i)")
+    line = line.replace("getVs2()", "getVs2(batch_i)")
+    line = line.replace("getVs3()", "getVs3(batch_i)")
+    line = line.replace("setVd(", "setVd(batch_i,")
+
+    # Dependencies need the unpacking delay
+    # line = line.replace("V1_Unpack_Fixed =", "V1_Unpack_Fixed = perfModel->vectorFixedDelayV1.getDelay() + ")
+    line = line.replace(
+        "perfModel->V1_Subpipe,",
+        "(batch_i == 0) * (perfModel->V1_Subpipe + 1),",
+    )
+    line = line.replace(
+        "perfModel->V2_Subpipe,",
+        "(batch_i == 0) * (perfModel->V2_Subpipe + 1),",
+    )
+    return line
 
 def main():
 
@@ -211,21 +228,7 @@ def main():
 
                         if in_batch:
                             # Use getters with batch parameter
-                            line = line.replace("getVs1()", "getVs1(batch_i)")
-                            line = line.replace("getVs2()", "getVs2(batch_i)")
-                            line = line.replace("getVs3()", "getVs3(batch_i)")
-                            line = line.replace("setVd(", "setVd(batch_i,")
-
-                            # Dependencies need the unpacking delay
-                            # line = line.replace("V1_Unpack_Fixed =", "V1_Unpack_Fixed = perfModel->vectorFixedDelayV1.getDelay() + ")
-                            line = line.replace(
-                                "perfModel->V1_Subpipe,",
-                                "(batch_i == 0) * (perfModel->V1_Subpipe + 1),",
-                            )
-                            line = line.replace(
-                                "perfModel->V2_Subpipe,",
-                                "(batch_i == 0) * (perfModel->V2_Subpipe + 1),",
-                            )
+                            line = batch_static_replace(line)
                             if "uint64_t" in line and "=" not in line:
                                 # Variable
                                 batch_var_stack.append(line)
